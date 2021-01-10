@@ -1,0 +1,31 @@
+#!/bin/env python
+
+from botaplot.machines.botaplot import BotAPlot, SerialTransport, SimpleAsciiProtocol, TelnetTransport
+import sys
+import os.path
+
+
+
+if sys.argv[1].startswith("telnet://"):
+    p = SimpleAsciiProtocol(False)
+    t = TelnetTransport(sys.argv[1])
+else:
+    p = SimpleAsciiProtocol(True)
+    t = SerialTransport(sys.argv[1])
+#t = TelnetTransport(sys.argv[1])
+
+lines = [
+    "G90 ; absolute mode",
+    "G21 ; millimeters",
+    "M280 S5 ; pen up",
+    "G04 P500"
+    "G28 X0 Y0 ; Home me",
+    "G0 X150 Y150 ; middle of the road"
+]
+
+if sys.argv[2] and os.path.isfile(os.path.normpath(sys.argv[2])):
+    lines = [line.strip() for line in
+             open(os.path.normpath(sys.argv[2])).readlines()]
+    p.plot(lines, t)
+else:
+    p.plot(lines, t)

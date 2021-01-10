@@ -1,7 +1,10 @@
 # created by virtualenv automatically
+man
+vendor
 bin
 __pycache__
 lib
 pyvenv.cfg
 share
 *gcode
+/*.svg

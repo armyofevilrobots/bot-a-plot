@@ -23,9 +23,12 @@ class Plottable(object):
     class Line(PlotChunk):
         """Line segment"""
         def __init__(self, points: np.ndarray, weight: float=1.0, pen=1):
-            self.points = np.ndarray
+            self.points = points
             self.weight = weight
             self.pen = pen
+
+        def __len__(self):
+            return len(self.points)
 
         def __iter__(self):
             for x in self.points:
@@ -42,7 +45,7 @@ class Plottable(object):
     def __init__(self, chunks=None):
         if chunks is None:
             chunks = list()
-        self.chunks = self.optimize_lines(chunks)
+        self.chunks = chunks  # self.optimize_lines(chunks)
 
     def optimize_lines(self, chunks=None, limit=30000):
         """
@@ -60,7 +63,7 @@ class Plottable(object):
             orig_chunks = self.chunks.copy()
         line = orig_chunks.pop(0)  # Start us out.
         next_chunk = NextLine(None, False, MAX_LENGTH, False)  # Which index, how far away
-        while orig_chunks:
+        while len(orig_chunks) > 0:
             span = min(limit, len(orig_chunks))
             for i in range(span):
                 d_e2e = distance(line.points[-1], orig_chunks[i].points[-1])
@@ -90,6 +93,9 @@ class Plottable(object):
         self.chunks = out_chunks
         return out_chunks
 
+    def __len__(self):
+        return len(self.chunks)
+
     def __iter__(self):
         for x in self.chunks:
             yield x
@@ -98,6 +104,12 @@ class Plottable(object):
         return self.chunks[idx]
 
     def __repr__(self):
-        if len(self.points):
+        if len(self.chunks):
             return "<Plottable: %d Chunks>" % (len(self.chunks))
         return "<Plottable:Empty>"
+
+    def pop(self, *args, **kw):
+        return self.chunks.pop(*args, **kw)
+
+    def reverse(self):
+        self.chunks.reverse()

@@ -30,6 +30,9 @@ class BotAPlot(object):
 
     def post(self, lines: Plottable, fp=None):
         if fp is None:
-            fp = StringIO()
-        self.post.post_lines_to_fp(lines, fp)
-        return fp
+            ofp = StringIO()
+        else:
+            ofp = fp
+        self.post.post_lines_to_fp(lines, ofp)
+        if fp is None:
+            return ofp.getvalue()
