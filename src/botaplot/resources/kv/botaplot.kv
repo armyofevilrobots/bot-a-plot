@@ -1,0 +1,110 @@
+#:import resource_path botaplot.resources.resource_path
+<ItemDrawer>:
+    on_release: self.parent.set_color_item(self)
+
+    IconLeftWidget:
+        id: icon
+        icon: root.icon
+        text_color: root.text_color
+        on_release: self.on_release
+
+<ContentNavigationDrawer>:
+    orientation: "vertical"
+    padding: "8dp"
+    spacing: "8dp"
+    AnchorLayout:
+        anchor_x: "left"
+        size_hint_y: None
+        height: avatar.height
+        Image:
+            id: avatar
+            size_hint: None, None
+            size: "56dp", "56dp"
+            source: resource_path("images", "aoer_logo_min.png")
+
+    ScrollView:
+
+        DrawerList:
+            id: md_list
+
+
+
+
+# <LoadDialog>:
+#     BoxLayout:
+#         size: root.size
+#         pos: root.pos
+#         orientation: "vertical"
+#         FileChooserListView:
+#             id: filechooser
+#
+#         BoxLayout:
+#             size_hint_y: None
+#             height: 64
+#             MDRaisedButton:
+#                 text: "Cancel"
+#                 on_release: root.cancel()
+#                 padding: "8dp"
+#
+#             MDRaisedButton:
+#                 text: "Load"
+#                 on_release: root.load(filechooser.path, filechooser.selection)
+#                 padding: "8dp"
+
+Screen:
+    BoxLayout:
+        orientation: 'vertical'
+        MDNavigationLayout:
+            id: nav_layout
+
+            ScreenManager:
+                Screen:
+                    BoxLayout:
+                        orientation: "vertical"
+                        adaptive_height: True
+                        MDToolbar:
+                            # size_hint: 1,self.minimum_height
+                            title: "Bot-à-Plot"
+                            elevation: 10
+                            left_action_items: [['menu', lambda x: nav_drawer.set_state("toggle")]]
+
+                        MDTabs:
+                            id: app_tabs
+                            # height: sum([c.height for c in self.children])
+                            # height: self.height
+                            on_tab_switch: app.on_tab_switch(*args)
+                            tab_indicator_type: "line"
+                            tab_indicator_anim: True
+                            allow_stretch: False
+                            no_ripple_effect: False
+                            ripple_duration: 2
+                            Tab:
+                                text: "Canvas"
+                                Button:
+                                    text: 'Layer output area'
+                            Tab:
+                                text: "Layers" 
+                                Button:
+                                    text: 'Layer list and editor'
+                            Tab:
+                                text: "Plotter" 
+                                Button:
+                                    text: 'GCode output'
+
+                        # PageLayout:
+                        #     id: app_pages
+                        #     Button:
+                        #         text: 'Layer output area'
+                        #     Button:
+                        #         text: 'Layer list and editor'
+                        #     Button:
+                        #         text: 'GCode output'
+
+
+            MDNavigationDrawer:
+                id: nav_drawer
+
+                ContentNavigationDrawer:
+                    id: content_nav_drawer
+
+
