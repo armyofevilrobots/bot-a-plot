@@ -29,13 +29,20 @@ class TestPlottable(unittest.TestCase):
         i = 0
         for item in self.plottable:
             i += 1
-            print("ITEM:", item)
         self.assertEquals(i, 2)
 
     def test_pop_plottable(self):
         tmp = self.plottable.pop()
         self.assertEquals(len(self.plottable), 1)
-        print("Popped chunk:", tmp)
-        print("Plottable:", self.plottable, self.plottable[0])
 
 
+    def test_optimize(self):
+        tp = Plottable(
+            [
+                Plottable.Line([(20,20), (120,20), (20,30)]),
+                Plottable.Line([(20,30.5), (120,32)]),
+                Plottable.Line([(20,40), (120,42)])
+            ])
+
+        # It should reverse that last line
+        self.assertEquals(tp[2][0], (120,32))

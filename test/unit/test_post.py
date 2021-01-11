@@ -32,8 +32,33 @@ class TestPosts(unittest.TestCase):
 
     def test_stringio_post(self):
         """Draw a square, post it"""
-        print("Plottable is", self.chunks)
         post = GCodePost()
         ofp = StringIO()
         post.write_lines_to_fp(self.chunks, ofp)
-        print(ofp.getvalue())
+
+        checks = [line for line in ofp.getvalue().split("\n") if line.startswith("G01")]
+        self.assertListEqual(checks, [
+            'G01 F1200.00 X20.00 Y40.00',  # The little house...
+            'G01 F1200.00 X35.00 Y50.00',
+            'G01 F1200.00 X50.00 Y40.00',
+            'G01 F1200.00 X50.00 Y20.00',
+            'G01 F1200.00 X20.00 Y20.00',
+            'G01 F1200.00 X50.00 Y20.00',  # The little circle
+            'G01 F1200.00 X43.12 Y15.40',
+            'G01 F1200.00 X35.00 Y13.79',
+            'G01 F1200.00 X26.88 Y15.40',
+            'G01 F1200.00 X20.00 Y20.00',
+            'G01 F1200.00 X15.40 Y26.88',
+            'G01 F1200.00 X13.79 Y35.00',
+            'G01 F1200.00 X15.40 Y43.12',
+            'G01 F1200.00 X20.00 Y50.00',
+            'G01 F1200.00 X26.88 Y54.60',
+            'G01 F1200.00 X35.00 Y56.21',
+            'G01 F1200.00 X43.12 Y54.60',
+            'G01 F1200.00 X50.00 Y50.00',
+            'G01 F1200.00 X54.60 Y43.12',
+            'G01 F1200.00 X56.21 Y35.00'
+        ])
+
+
+

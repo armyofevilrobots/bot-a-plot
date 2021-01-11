@@ -45,7 +45,7 @@ class Plottable(object):
     def __init__(self, chunks=None):
         if chunks is None:
             chunks = list()
-        self.chunks = chunks  # self.optimize_lines(chunks)
+        self.chunks = self.optimize_lines(chunks)
 
     def optimize_lines(self, chunks=None, limit=30000):
         """
@@ -62,6 +62,7 @@ class Plottable(object):
         else:
             orig_chunks = self.chunks.copy()
         line = orig_chunks.pop(0)  # Start us out.
+        out_chunks.append(line)
         next_chunk = NextLine(None, False, MAX_LENGTH, False)  # Which index, how far away
         while len(orig_chunks) > 0:
             span = min(limit, len(orig_chunks))
@@ -113,3 +114,6 @@ class Plottable(object):
 
     def reverse(self):
         self.chunks.reverse()
+
+    def append(self, *args, **kw):
+        self.chunks.append(*args, **kw)
