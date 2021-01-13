@@ -1,4 +1,5 @@
 # created by virtualenv automatically
+*.egg-info
 man
 vendor
 bin
@@ -8,3 +9,5 @@ pyvenv.cfg
 share
 *gcode
 /*.svg
+.idea
+botaplot.ini

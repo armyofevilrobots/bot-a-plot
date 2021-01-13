@@ -6,7 +6,6 @@
         id: icon
         icon: root.icon
         text_color: root.text_color
-        on_release: self.on_release
 
 <ContentNavigationDrawer>:
     orientation: "vertical"
@@ -28,28 +27,74 @@
             id: md_list
 
 
+<DragCard>:
+    drag_rectangle: self.x, self.y, self.width, self.height
+    drag_timeout: 10000000
+    drag_distance: 0
+    id: python_source_a
+    width: 600
+    height: component_tools.height+len(component_list.children)*component_list.children[0].height
+    BoxLayout:
+        id: component_box
+        size_hint: [1, 1]
+        orientation: 'vertical'
+        adaptive_size: True
+        MDToolbar:
+            id: component_tools
+            title: root.title
+            right_action_items: root.actions
+        MDList:
+            adaptive_size: True
+            id: component_list
+            size_hint: [1, 1]
+            MDCard:
+                orientation: "horizontal"
+                MDIcon:
+                    icon: "folder-open"
+                    halign: "left"
+                    size_hint: [None,1]
+                    padding: ["8dp","8dp"]
+                MDLabel:
+                    halign: "left"
+                    padding: ["8dp","8dp"]
+                    text: "Source File"
+                    size_hint: [1,1]
+            MDCard:
+                orientation: "horizontal"
+                MDIcon:
+                    icon: "arrow-right-bold-circle"
+                    halign: "left"
+                    padding: ["8dp","8dp"]
+                    size_hint: [None,1]
+                MDLabel:
+                    halign: "left"
+                    padding: ["8dp","8dp"]
+                    text: "Input SVG (optional)"
+                    size_hint: [1,1]
+            MDCard:
+                orientation: "horizontal"
+                MDLabel:
+                    padding: ["8dp","8dp"]
+                    text: "Some Output"
+                    halign: "right"
+                    size_hint: [1,1]
+                MDIcon:
+                    icon: "arrow-right-bold-circle"
+                    halign: "right"
+                    padding: ["8dp","8dp"]
+                    size_hint: [None,1]
+
+<SketchLayout>:
+    do_rotation: False
+    size: [4096, 4096]
+    scale_min: 0.5
+    scale_max: 2
+    size: "400sp", "200sp"
+    size_hint: None, None
+    pos_hint: {"center_x": .5, "center_y": .5}
 
 
-# <LoadDialog>:
-#     BoxLayout:
-#         size: root.size
-#         pos: root.pos
-#         orientation: "vertical"
-#         FileChooserListView:
-#             id: filechooser
-#
-#         BoxLayout:
-#             size_hint_y: None
-#             height: 64
-#             MDRaisedButton:
-#                 text: "Cancel"
-#                 on_release: root.cancel()
-#                 padding: "8dp"
-#
-#             MDRaisedButton:
-#                 text: "Load"
-#                 on_release: root.load(filechooser.path, filechooser.selection)
-#                 padding: "8dp"
+
 
 Screen:
     BoxLayout:
@@ -69,9 +114,10 @@ Screen:
                             left_action_items: [['menu', lambda x: nav_drawer.set_state("toggle")]]
 
                         MDTabs:
-                            id: app_tabs
+                            
                             # height: sum([c.height for c in self.children])
-                            # height: self.height
+                            height: self.height
+                            # lock_swiping: True
                             on_tab_switch: app.on_tab_switch(*args)
                             tab_indicator_type: "line"
                             tab_indicator_anim: True
@@ -79,26 +125,41 @@ Screen:
                             no_ripple_effect: False
                             ripple_duration: 2
                             Tab:
+                                text: "Sketch" 
+                                BoxLayout:
+                                    orientation: 'vertical'
+                                    # adaptive_height: True
+                                    SketchLayout:
+                                        id: sketch_layout
+                                        DragCard:
+                                            title: "Some Python Thing"
+                                            #size: component_box.size_hint_min
+
+                                                # BoxLayout:
+                                                #     id: component_cards
+                                                #     orientation: "horizontal"
+                                                    
+
+                                        DragCard:
+                                            title: "Some Post Processor"
+                                            id: post_processor_b
+
+                                    MDToolbar:
+                                        title: "Sketch"
+                                        # icon: "language-python"
+                                        # type: "bottom"
+                                        right_action_items: [["file-code-outline", lambda x: x], ["drawing-box", lambda x:print(x)]]
+                            Tab:
+                            # TabbedPanelItem:
                                 text: "Canvas"
                                 Button:
                                     text: 'Layer output area'
                             Tab:
-                                text: "Layers" 
-                                Button:
-                                    text: 'Layer list and editor'
-                            Tab:
+                            # TabbedPanelItem:
                                 text: "Plotter" 
                                 Button:
                                     text: 'GCode output'
 
-                        # PageLayout:
-                        #     id: app_pages
-                        #     Button:
-                        #         text: 'Layer output area'
-                        #     Button:
-                        #         text: 'Layer list and editor'
-                        #     Button:
-                        #         text: 'GCode output'
 
 
             MDNavigationDrawer:

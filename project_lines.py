@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib
-matplotlib.use('Agg')
+matplotlib.use('macOSX')
 import json
 from penkit.fractal import hilbert_curve, flowsnake
 from penkit.textures import make_lines_texture, make_grid_texture, make_spiral_texture

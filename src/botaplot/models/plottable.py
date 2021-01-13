@@ -11,7 +11,8 @@ on the post-processor), and a "tool/pen id".
 import numpy as np
 from math import sqrt
 from collections import namedtuple
-from botaplot.util.util import (valid_point, distance, NextLine, MAX_LENGTH)
+from botaplot.util.util import (valid_point, distance, NextLine, MAX_LENGTH,
+                                clamp_coords)
 
 
 
@@ -46,6 +47,31 @@ class Plottable(object):
         if chunks is None:
             chunks = list()
         self.chunks = self.optimize_lines(chunks)
+
+    def clamp(self, graphsize=230.0, margins=10, invert=True):
+        xmin = MAX_LENGTH
+        xmax = -MAX_LENGTH
+        ymin = MAX_LENGTH
+        ymax = -MAX_LENGTH
+        for chunk in self.chunks:
+            # First we measure
+            xmin = min(xmin, min([p[0] for p in chunk.points]))
+            xmax = max(xmax, max([p[0] for p in chunk.points]))
+            ymin = min(ymin, min([p[1] for p in chunk.points]))
+            ymax = max(ymax, max([p[1] for p in chunk.points]))
+        scale = min((graphsize-(margins*2.0))/(ymax-ymin),
+                    (graphsize-(margins*2.0))/(xmax-xmin))
+        for chunk in self.chunks:
+            # Now we scale
+            if invert:
+                chunk.points = [(margins + (scale*(p[0]-xmin)),
+                                 ((graphsize-margins) - scale*(p[1]-ymin)))
+                                for p in chunk.points]
+            else:
+                chunk.points = [(margins + (scale*(p[0]-xmin)),
+                                 (margins + scale*(p[1]-ymin)))
+                                for p in chunk.points]
+
 
     def optimize_lines(self, chunks=None, limit=30000):
         """

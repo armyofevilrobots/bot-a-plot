@@ -11,18 +11,30 @@ from kivy.logger import Logger
 from kivymd.app import MDApp
 from kivymd.uix.filemanager import MDFileManager
 from kivy.uix.floatlayout import FloatLayout
-from kivymd.uix.tab import MDTabsBase
+from kivy.uix.behaviors import DragBehavior
+from kivymd.uix.tab import MDTabsBase, MDTabsCarousel
+from kivymd.uix.card import MDCard
+from kivy.core.window import Window
 from botaplot.resources import resource_path
 from botaplot.ui.drawer_menu import *
-from botaplot.ui.filechooser import LoadDialog
+from botaplot.ui.filechooser import LoadDialog, FileOpener
+from botaplot.ui.sketch_canvas import SketchLayout
 import os.path
+from kivy.config import Config
 
-# from kivy.core.window import Window
-# Window.size = (1920, 1080)
+
 
 class Tab(FloatLayout, MDTabsBase):
     '''Class implementing content for a tab.'''
+    pass
 
+# Monkeypatch the tab carousel...
+def on_touch_move(self, touch):
+    self._change_touch_mode()
+    self.touch_mode_change = True
+    super(MDTabsCarousel, self).on_touch_move(touch)
+
+MDTabsCarousel.on_touch_move = on_touch_move
 
 def load_svg():
     """Loads an SVG via dialog"""
@@ -39,48 +51,6 @@ def load_svg():
 
     opener = FileOpener(success, extensions=['.svg', ])
     opener.show()
-
-class FileOpener(EventDispatcher):
-    valid = BooleanProperty(False)
-    path = StringProperty("")
-
-    def __init__(self,
-                 success=None,
-                 fail=None,
-                 rootpath=os.path.expanduser("~"),
-                 extensions=False):
-
-        self.filemanager = MDFileManager(
-            ext=extensions or list(),
-            exit_manager=self.exit_manager,
-            select_path=self.select_path,
-            sort_by="name",
-            preview=False
-        )
-        self.success = success
-        self.fail = fail
-        self.rootpath = rootpath
-
-    def show(self, rootpath=None):
-        self.valid = False
-        self.path = ""
-        self.filemanager.show(self.rootpath)
-
-    def exit_manager(self, state=None):
-        Logger.info("Exiting file manager")
-        self.filemanager.close()
-        if self.fail is not None and not self.valid:
-            self.fail(self)
-
-    def select_path(self, path=None):
-        Logger.info("Selecting path in file manager")
-        self.path = path
-        self.valid = (path is not None)
-        self.filemanager.close()
-        if self.success is not None:
-            self.success(self, path)
-        elif self.fail is not None:
-            self.fail(self)
 
 
 
@@ -108,12 +78,21 @@ MENU_ITEMS = [
     MenuAndCallback("Quit", "exit-run", lambda: MDApp.get_running_app().stop())
 ]
 
-
-
 class BotAPlotApp(MDApp):
+
+
+    def build_config(self, config):
+        config.setdefaults(
+            'foo', {
+                'key1': 'value1',
+                'key2': '42'
+            })
+
     def build(self):
+        #self.theme_cls.primary_palette = "DeepPurple"
         self.theme_cls.primary_palette = "Red"
         #self.theme_cls.theme_style = "Dark"
+        self.theme_cls.theme_style = "Light"
         return Builder.load_file(resource_path("kv", "botaplot.kv"))
 
     def on_start(self):
@@ -122,6 +101,7 @@ class BotAPlotApp(MDApp):
             widget = ItemDrawer(icon=item.icon, text=item.name)
             if callable(item.action):
                 widget.on_release = item.action
+                widget.ids.icon.on_release = item.action
             self.root.ids.content_nav_drawer.ids.md_list.add_widget(
                 widget
             )
@@ -137,18 +117,10 @@ class BotAPlotApp(MDApp):
         :param instance_tab_label: <kivymd.uix.tab.MDTabsLabel object>;
         :param tab_text: text or name icon of tab;
         '''
-        #count_icon = [k for k, v in md_icons.items() if v == tab_text]
-        #instance_tab.ids.icon.icon = count_icon[0]
         Logger.info("Switching to tab %s with label %s -> %s",
                     instance_tab.__dict__,
                     instance_tab_label.__dict__,
                     tab_text)
-        # if tab_text == "Canvas":
-        #     self.root.ids.app_pages.page=0
-        # elif tab_text == "Layers":
-        #     self.root.ids.app_pages.page=1
-        # elif tab_text == "Plotter":
-        #     self.root.ids.app_pages.page=2
 
 
 
