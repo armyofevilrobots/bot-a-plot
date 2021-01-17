@@ -50,7 +50,7 @@ class TestSVGLib(unittest.TestCase):
                       (94.54531225862775, 91.19144538945112),
                       (122.76582999999991, 56.29353100000003)]
                      )
-        print([x[0] for x in merged])
+        # print([x[0] for x in merged])
         for pair in merged:
             self.assertAlmostEqual(pair[0][0], pair[1][0])
             self.assertAlmostEqual(pair[0][1], pair[1][1])

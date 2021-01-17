@@ -24,10 +24,10 @@ class TestSVGLibWithPost(unittest.TestCase):
         #     print("\tPath:",path)
         lines = [subdivide_path(path, 1) for path in self.paths]
         plottable = Plottable([Plottable.Line(line) for line in lines])
-        print("SUBD IS", lines)
-        print("Plottable is", plottable)
+        # print("SUBD IS", lines)
+        # print("Plottable is", plottable)
         ofp = StringIO()
         plottable.clamp(212.0, 10.0, True)
         self.post.write_lines_to_fp(plottable, ofp)
-        print(ofp.getvalue())
+        # print(ofp.getvalue())
 

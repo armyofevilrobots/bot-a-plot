@@ -18,6 +18,8 @@ def register_widget(klass):
 
 
 def from_dict(data):
+    if data is None:
+        return None
     if isinstance(data, list):
         return [from_dict(item) for item in data]
     if isinstance(data, (int, str, float)):
@@ -51,6 +53,21 @@ class Serializable:
     def from_dict(cls, data):
         return cls(data=data)
 
+@register_type
+class BaseControl(Serializable):
+    value = None
+    description = "Null Control"
+    value_hint="None"
+
+    def __init__(self, value, description=None):
+        self.value = value
+        self.description = description or "Null control"
+
+    def to_dict(self):
+        base = super(BaseControl, self).to_dict()
+        base['value'] = self.value
+        base['description'] = self.description
+        return base
 
 
 @register_type
@@ -58,6 +75,7 @@ class MediaType(Serializable, Enum):
     NULL=0
     SVG=1
     PLOTTABLE=2
+    FIELD=3  # A numpy matrix of values
 
     def to_dict(self):
         data = {"_type":"MediaType", "value":self.value}
@@ -155,6 +173,7 @@ class SketchGraph(Serializable):
     together in a nice little bundle, with JSON serialization for saving."""
     nodes = list()  # of nodes, eh
     edges = list()
+    basedir = None
 
     def __init__(self, nodes=None, edges=None, meta=None, id=None):
         self.id = id or str(uuid.uuid4())

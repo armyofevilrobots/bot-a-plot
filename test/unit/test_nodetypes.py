@@ -4,6 +4,7 @@ import unittest
 import math
 import hjson
 from botaplot.models.sketch_graph import *
+from botaplot.models.controls import *
 
 class TestNodeTypes(unittest.TestCase):
 
@@ -38,11 +39,13 @@ class TestSerialization(unittest.TestCase):
             Edge(nodes[i].sources[0], nodes[i+1].sinks[0])
             for i in range(2)
         ]
+        nodes[0].controls.append(FileSelectorControl(
+            value=None, extension="svg", description="SVG FILE"))
         graph = SketchGraph(nodes, edges)
         dumpable = graph.to_dict()
         #print("DUMPABLE:", dumpable)
         hj = hjson.dumps(dumpable)
-        #print("HJ FOR SG IS", hj)
+        print("HJ FOR SG IS", hj)
         undump = hjson.loads(hj)
 
         newgraph = from_dict(data=undump)
