@@ -1,16 +1,20 @@
 from kivy.lang import Builder
 from kivy.logger import Logger
+from kivy.config import Config
+from kivy.properties import ObjectProperty, NumericProperty, StringProperty
 
 from kivymd.app import MDApp
 from kivy.uix.floatlayout import FloatLayout
 from kivymd.uix.tab import MDTabsBase, MDTabsCarousel
 from kivymd.material_resources import DEVICE_TYPE
+from ..models.sketch_graph import SketchGraph
+from ..models import *
 from ..resources import resource_path
 from .drawer_menu import *
-from .filechooser import FileOpener
 from .theming import DesktopThemeClass
 from .sketch_canvas import SketchLayout
-from kivy.config import Config
+from .node import DragCard
+from .menu import MENU_ITEMS
 Config.set('input', 'mouse', 'mouse,multitouch_on_demand')
 
 
@@ -25,57 +29,22 @@ def on_touch_move(self, touch):
 
 MDTabsCarousel.on_touch_move = on_touch_move
 
-def load_svg():
-    """Loads an SVG via dialog"""
-    def success(self, filename):
-        Logger.warn("OPENING SVG: %s" % filename)
-        root = MDApp.get_running_app().root
-        root.ids.nav_drawer.set_state("close")
-
-    def fail(self):
-        Logger.warn("Not opening due to cancel/fail")
-        root = MDApp.get_running_app().root
-        root.ids.nav_drawer.set_state("close")
-
-
-    opener = FileOpener(success, extensions=['.svg', ])
-    opener.show()
-
-
-
-class MenuAndCallback(object):
-    # If it's NONE it's a mistake, dict is submenu, callable is menu action
-    action = None
-    name = "Unknown"
-    icon = "alien"
-
-    def __init__(self, name="Unknown", icon="alien", action=None):
-        if action is None:
-            action = lambda: Logger.error("No action defined for %s" % name)
-        self.action = action
-        self.name = name
-        self.icon = icon
-
-
-# Later on, these should really get built up from some kind of plugin system
-MENU_ITEMS = [
-    MenuAndCallback("New Project", "folder-plus"),
-    MenuAndCallback("Open Project", "folder-open"),
-    MenuAndCallback("Import SVG", "drawing", load_svg),
-    MenuAndCallback("Settings", "database-settings"),
-    MenuAndCallback("Plot", "printer"),
-    MenuAndCallback("Theme", "theme-light-dark", lambda: MDApp.get_running_app().toggle_dark()),
-    MenuAndCallback("Quit", "exit-run", lambda: MDApp.get_running_app().stop())
-]
 
 class BotAPlotApp(MDApp):
-
-    
+    model = ObjectProperty()
 
     def __init__(self, *args, **kw):
         super(BotAPlotApp, self).__init__(*args, **kw)
         self.theme_cls = DesktopThemeClass()
-        # self.theme_cls.
+
+    def set_model(self, model):
+        Logger.info("Loading model: %s", model)
+        self.model = model
+        self.root.ids.sketch_layout.center_on_content()
+
+    def on_model(self, instance, model):
+        print("Model change", instance, model)
+        self.root.ids.sketch_layout.update(model)
 
     def build_config(self, config):
         config.setdefaults(
@@ -129,6 +98,15 @@ class BotAPlotApp(MDApp):
                 widget
             )
         Logger.info("Done creating menu items.")
+
+        print(self.root.ids.sketch_layout, self.root.ids.sketch_layout.children)
+        for child in self.root.ids.sketch_layout.children[::-1]:
+            self.root.ids.sketch_layout.remove_widget(
+                child)
+        print("Done")
+
+
+
 
     def on_tab_switch(
             self, instance_tabs, instance_tab, instance_tab_label, tab_text):

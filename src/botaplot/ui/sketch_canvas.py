@@ -7,10 +7,12 @@ from kivy.uix.behaviors import DragBehavior
 from kivy.properties import ObjectProperty, NumericProperty, StringProperty
 from kivy.graphics import Color, Bezier, Line, Callback, Rectangle
 from kivy.uix.scatterlayout import ScatterLayout
+from kivy.factory import Factory
 from kivy.logger import Logger
 from kivy.graphics.transformation import Matrix
 from uuid import uuid4
 from statistics import mean, median
+from ..models.sketch_graph import SketchGraph
 
 class SketchLayout(ScatterPlane):
 #class SketchLayout(ScatterLayout):
@@ -18,18 +20,22 @@ class SketchLayout(ScatterPlane):
 
     def __init__(self, *args, **kwargs):
         super(SketchLayout, self).__init__(*args, **kwargs)
-        with self.canvas:
-            Color(0.6, 0.0, 0.0)
-            self.connector_cb = Callback(self._update_spline)
-            self.bezier = Line(
-                bezier=[-200,-100, 200,100, 300,200, 500,500, 800,400],
-                segments=20,
-                width=16.0
-                    )
-            Color(0,0,1.0)
-            Line(points=(-15,-15,15,15), width=4)
-            Line(points=(15,-15,-15,15), width=4)
+        # with self.canvas:
+        #     Color(0.6, 0.0, 0.0)
+        #     self.connector_cb = Callback(self._update_spline)
+        #     self.bezier = Line(
+        #         bezier=[-200,-100, 200,100, 300,200, 500,500, 800,400],
+        #         segments=20,
+        #         width=16.0
+        #             )
+        #     Color(0,0,1.0)
+        #     Line(points=(-15,-15,15,15), width=4)
+        #     Line(points=(15,-15,-15,15), width=4)
         self.bind(pos=self.redraw, size=self.redraw)
+        # These are the spline edges, which are just bezier lines
+        self.edge_splines = dict()  # source_uuid-sink_uuid
+        # And these are the child nodes themselves
+        self.nodes = dict()  # by uuid
 
 
     def on_start(self, *args, **kw):
@@ -38,6 +44,50 @@ class SketchLayout(ScatterPlane):
 
     def redraw(self, *args):
         pass
+
+    @staticmethod
+    def _spline_name(edge):
+        source = edge.source.id
+        sink = edge.sink.id
+        return f"{edge.source.id}-{edge.sink.id}"
+
+    def update(self, model: SketchGraph):
+        """Cleans out old entries, creates a new graph, redraws"""
+        edges_to_delete = set(self.edge_splines.keys()
+                              ).difference([self._spline_name(edge)
+                                            for edge in model.edges])
+        Logger.info("Cleaning out old edges: %s" % edges_to_delete)
+        for edge in edges_to_delete:
+            self.canvas.remove(self.edge_splines[edge])
+            del self.edge_splines[edge]
+        for nid, widget in self.nodes.items():
+            if nid not in [node.id for node in model.nodes]:
+                self.canvas.remove(self.nodes[nid])
+                del self.nodes[nid]
+        for nid, widget in self.nodes.items():
+            if nid not in [node.id for node in model.nodes]:
+                self.canvas.remove(self.nodes[nid])
+                del self.nodes[nid]
+        Logger.info("Done deleting all orphaned widgets")
+
+        #If no meta on position, use this as xpos, with y=0
+        x_hint = -(len(model.nodes)*800.0)/2.0
+        for node in model.nodes:
+            Logger.info("Adding node %s." % node)
+            if model.id in self.nodes:
+                Logger.info("Skipping, already in UI")
+                continue
+            print(node.__class__)
+            widget = getattr(Factory, node.__class__.__name__, None)(
+                pos=node.meta.get('position', (x_hint, 0)),
+                size=node.meta.get('size', (640, 0)),
+                title=node.meta.get('title', "BaseNode")
+            )
+            x_hint += 800  # Magic!
+            self.add_widget(widget)
+
+
+
 
 
     def _update_spline(self, instruction):
@@ -58,22 +108,6 @@ class SketchLayout(ScatterPlane):
         #                       #(pypos[0]+pppos[0])/2,(pypos[1]+pppos[1])/2,
         #                       pppos[0]-postproc.width,pppos[1],
         #                       pppos[0], pppos[1]]
-
-    def shuttle_over(self, touched, invert=False):
-        t = Matrix()
-        ttouched = Matrix().translate(touched[0], touched[1],0)
-        print("TOUCHED COORDS", self.to_parent(*touched))
-        print("My Transform", self.transform)
-        t = t.multiply(ttouched)
-        dx, dy = (-t[12]+self.x, -t[13]+self.y)
-        print("dx,dy:", dx, dy)
-        if invert:
-            self.center_x = self.center_x+dx*0.1
-            self.center_y = self.center_y+dy*0.1
-        else:
-            self.center_x = self.center_x-dx*0.1
-            self.center_y = self.center_y-dy*0.1
-
 
     def center_on_content(self):
         if len(self.children):
@@ -116,22 +150,6 @@ class SketchLayout(ScatterPlane):
 
 
 
-class DragCard(DragBehavior, MDCard):
-    title = StringProperty()
-    id = StringProperty()
-    actions = [["language-python", lambda x:x]]
-
-    def __init__(self, *args, **kw):
-        super(DragCard, self).__init__(*args, **kw)
-        if not self.id:
-            self.id="drag_card_%s" % (uuid4().hex)
-
-
-    def on_touch_down(self,touch):
-        if not self.collide_point(*touch.pos):
-            return False
-        return super(DragCard, self).on_touch_down(touch)
 
 
 Factory.register('SketchLayout', cls=SketchLayout)
-Factory.register('DragCard', cls=DragCard)

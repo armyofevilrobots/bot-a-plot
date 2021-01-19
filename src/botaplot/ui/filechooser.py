@@ -6,6 +6,7 @@ from kivy.properties import BooleanProperty, StringProperty
 from kivy.uix.popup import Popup
 from kivy.event import EventDispatcher
 from kivy.logger import Logger
+from kivymd.uix.filemanager import MDFileManager
 import os.path
 
 class LoadDialog(FloatLayout):

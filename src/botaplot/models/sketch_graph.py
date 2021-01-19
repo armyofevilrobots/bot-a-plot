@@ -1,4 +1,5 @@
 from functools import wraps
+import os.path
 import uuid
 from enum import Enum
 import hjson
@@ -180,6 +181,13 @@ class SketchGraph(Serializable):
         self.nodes = nodes or list()
         self.edges = edges or list()
         self.meta = meta or dict()
+
+    @classmethod
+    def from_file(cls, path):
+        path = os.path.normpath(path)
+        data = hjson.load(open(path))
+        new_graph = from_dict(data=data)
+        return new_graph
 
     def to_dict(self):
         base = super(SketchGraph, self).to_dict()
