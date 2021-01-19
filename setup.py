@@ -13,6 +13,7 @@ setup(
     long_description_content_type="text/markdown",
     url="https://armyofevilrobots.com",
     package_dir={'': 'src'},
+    scripts=["scripts/botaplot", ],
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: GPLv3 License",

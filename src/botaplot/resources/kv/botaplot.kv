@@ -1,4 +1,8 @@
 #:import resource_path botaplot.resources.resource_path
+#:set default_font_size "8dp" # Using kivy method to set a default size
+
+
+
 <ItemDrawer>:
     on_release: self.parent.set_color_item(self)
 
@@ -43,6 +47,7 @@
             id: component_tools
             title: root.title
             right_action_items: root.actions
+            font_size: "12sp"
         MDList:
             adaptive_size: True
             id: component_list
@@ -101,14 +106,18 @@ Screen:
         orientation: 'vertical'
         MDNavigationLayout:
             id: nav_layout
-
             ScreenManager:
+                id: screen_manager
                 Screen:
+                    id: main_screen
                     BoxLayout:
+                        id: "main_boxlayout"
                         orientation: "vertical"
                         adaptive_height: True
                         MDToolbar:
                             # size_hint: 1,self.minimum_height
+                            id: "main_toolbar"
+                            name: "main_toolbar"
                             title: "Bot-à-Plot"
                             elevation: 10
                             left_action_items: [['menu', lambda x: nav_drawer.set_state("toggle")]]

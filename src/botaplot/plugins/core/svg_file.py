@@ -18,7 +18,10 @@ class SVGSource(BaseSource):
         super(SVGSource, self).__init__(media_type, parent, id=None)
 
 @register_type
-class SVGFile(BaseNode):
+class SVGFileNode(BaseNode):
+    pass
+
+
 
 
 

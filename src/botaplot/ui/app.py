@@ -1,32 +1,21 @@
-from collections import OrderedDict
-from importlib import resources
-from kivy.uix.screenmanager import Screen
-from kivy.event import EventDispatcher
 from kivy.lang import Builder
-from kivy.uix.boxlayout import BoxLayout
-from kivy.uix.popup import Popup
-from kivy.properties import BooleanProperty, StringProperty
 from kivy.logger import Logger
 
 from kivymd.app import MDApp
-from kivymd.uix.filemanager import MDFileManager
 from kivy.uix.floatlayout import FloatLayout
-from kivy.uix.behaviors import DragBehavior
 from kivymd.uix.tab import MDTabsBase, MDTabsCarousel
-from kivymd.uix.card import MDCard
-from kivy.core.window import Window
-from botaplot.resources import resource_path
-from botaplot.ui.drawer_menu import *
-from botaplot.ui.filechooser import LoadDialog, FileOpener
-from botaplot.ui.sketch_canvas import SketchLayout
-import os.path
+from kivymd.material_resources import DEVICE_TYPE
+from ..resources import resource_path
+from .drawer_menu import *
+from .filechooser import FileOpener
+from .theming import DesktopThemeClass
+from .sketch_canvas import SketchLayout
 from kivy.config import Config
-
+Config.set('input', 'mouse', 'mouse,multitouch_on_demand')
 
 
 class Tab(FloatLayout, MDTabsBase):
     '''Class implementing content for a tab.'''
-    pass
 
 # Monkeypatch the tab carousel...
 def on_touch_move(self, touch):
@@ -75,11 +64,18 @@ MENU_ITEMS = [
     MenuAndCallback("Import SVG", "drawing", load_svg),
     MenuAndCallback("Settings", "database-settings"),
     MenuAndCallback("Plot", "printer"),
+    MenuAndCallback("Theme", "theme-light-dark", lambda: MDApp.get_running_app().toggle_dark()),
     MenuAndCallback("Quit", "exit-run", lambda: MDApp.get_running_app().stop())
 ]
 
 class BotAPlotApp(MDApp):
 
+    
+
+    def __init__(self, *args, **kw):
+        super(BotAPlotApp, self).__init__(*args, **kw)
+        self.theme_cls = DesktopThemeClass()
+        # self.theme_cls.
 
     def build_config(self, config):
         config.setdefaults(
@@ -88,11 +84,38 @@ class BotAPlotApp(MDApp):
                 'key2': '42'
             })
 
+    def toggle_dark(self):
+        if self.theme_cls.theme_style == "Dark":
+            self.theme_cls.theme_style = "Light"
+        else:
+            self.theme_cls.theme_style = "Dark"
+
+
     def build(self):
-        #self.theme_cls.primary_palette = "DeepPurple"
         self.theme_cls.primary_palette = "Red"
-        #self.theme_cls.theme_style = "Dark"
-        self.theme_cls.theme_style = "Light"
+        self.theme_cls.primary_hue = "700"
+
+        if DEVICE_TYPE != "mobile":
+            for key, val in {
+                    "H1": ["RobotoLight", 76, False, -1.5],
+                    "H2": ["RobotoLight", 50, False, -0.5],
+                    "H3": ["Roboto", 40, False, 0],
+                    "H4": ["Roboto", 30, False, 0.25],
+                    "H5": ["Roboto", 20, False, 0],
+                    "H6": ["RobotoMedium", 16, False, 0.15],
+                    "Subtitle1": ["Roboto", 12, False, 0.15],
+                    "Subtitle2": ["RobotoMedium", 11, False, 0.1],
+                    "Body1": ["Roboto", 12, False, 0.5],
+                    "Body2": ["Roboto", 11, False, 0.25],
+                    "Button": ["RobotoMedium", 11, True, 1.25],
+                    "Caption": ["Roboto", 10, False, 0.4],
+                    "Overline": ["Roboto", 9, True, 1.5],
+                    "Icon": ["Icons", 20, False, 0],
+            }.items():
+                self.theme_cls.font_styles[key] = val
+            # Hammering standard increment is _gross_, but straightforward:
+
+
         return Builder.load_file(resource_path("kv", "botaplot.kv"))
 
     def on_start(self):
@@ -106,7 +129,6 @@ class BotAPlotApp(MDApp):
                 widget
             )
         Logger.info("Done creating menu items.")
-
 
     def on_tab_switch(
             self, instance_tabs, instance_tab, instance_tab_label, tab_text):
