@@ -13,15 +13,13 @@ class DragCard(DragBehavior, MDCard):
     actions = [["language-python", lambda x:x]]
 
     def __init__(self, *args, **kw):
-        super(DragCard, self).__init__(*args, **kw)
-        if not self.id:
-            self.id="drag_card_%s" % (uuid4().hex)
+        super().__init__(*args, **kw)
 
 
     def on_touch_down(self,touch):
         if not self.collide_point(*touch.pos):
             return False
-        return super(DragCard, self).on_touch_down(touch)
+        return super().on_touch_down(touch)
 
 
 class BaseNode(DragCard):
@@ -29,3 +27,4 @@ class BaseNode(DragCard):
     name="Base Node"
 
 Factory.register('DragCard', cls=DragCard)
+Factory.register('BaseNode', cls=BaseNode)

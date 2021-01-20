@@ -1,5 +1,6 @@
 from kivymd.app import MDApp
 from kivymd.uix.card import MDCard
+from kivymd.uix.label import MDLabel
 from kivy.factory import Factory
 from kivy.uix.widget import Widget
 from kivy.uix.scatter import ScatterPlane
@@ -13,9 +14,10 @@ from kivy.graphics.transformation import Matrix
 from uuid import uuid4
 from statistics import mean, median
 from ..models.sketch_graph import SketchGraph
+from .controls import BaseControl
+
 
 class SketchLayout(ScatterPlane):
-#class SketchLayout(ScatterLayout):
     """Canvas that displays a sketch graph"""
 
     def __init__(self, *args, **kwargs):
@@ -36,6 +38,8 @@ class SketchLayout(ScatterPlane):
         self.edge_splines = dict()  # source_uuid-sink_uuid
         # And these are the child nodes themselves
         self.nodes = dict()  # by uuid
+        # Dict of source/sink IDs pointing at their parents
+        self.hint_con = dict()
 
 
     def on_start(self, *args, **kw):
@@ -74,20 +78,55 @@ class SketchLayout(ScatterPlane):
         x_hint = -(len(model.nodes)*800.0)/2.0
         for node in model.nodes:
             Logger.info("Adding node %s." % node)
-            if model.id in self.nodes:
+            if node.id in self.nodes:
                 Logger.info("Skipping, already in UI")
                 continue
-            print(node.__class__)
-            widget = getattr(Factory, node.__class__.__name__, None)(
-                pos=node.meta.get('position', (x_hint, 0)),
-                size=node.meta.get('size', (640, 0)),
-                title=node.meta.get('title', "BaseNode")
-            )
+            widget = self._build_widget_for_node(node, x_hint)
             x_hint += 800  # Magic!
             self.add_widget(widget)
+            self.nodes[node.id] = widget
+
+
+    def get_ui_class_for_model(self, model):
+        try:
+            child_cls = getattr(Factory, model.__class__.__name__, None)
+        except:
+            Logger.error("Could not find a UI widget for: %s" % model)
+            child_cls = None
+        Logger.info("Creating a %s for %s" % (child_cls, model))
+        return child_cls
+
+    def _add_children_to_node(self, widget, node):
+        """Add all the sources and sinks to a widget for a node"""
+        for control in node.controls:
+            child_cls = self.get_ui_class_for_model(control)
+            if child_cls is None:
+                Logger.error("Not adding UI component for model %s" % control)
+                continue
+            child = child_cls(
+                value=control.value or "null",
+                description=control.description
+            )
+            print("Child we added is", child)
+            widget.ids.component_list.add_widget(child)
+        for sink in node.sinks:
+            print("Adding sink:", sink)
+            child = MDLabel(text=sink.__class__.__name__)
+            widget.ids.component_list.add_widget(child)
+        for source in node.sources:
+            child = MDLabel(text=source.__class__.__name__)
+            widget.ids.component_list.add_widget(child)
 
 
 
+    def _build_widget_for_node(self, node, x_hint=0):
+        widget = getattr(Factory, node.__class__.__name__, None)(
+            pos=node.meta.get('position', (x_hint, 0)),
+            size=node.meta.get('size', (640, 0)),
+            title=node.meta.get('title', "BaseNode")
+        )
+        self._add_children_to_node(widget, node)
+        return widget
 
 
     def _update_spline(self, instruction):

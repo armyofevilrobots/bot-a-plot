@@ -1,3 +1,5 @@
+import os.path
+import sys
 from kivy.lang import Builder
 from kivy.logger import Logger
 from kivy.config import Config
@@ -99,11 +101,14 @@ class BotAPlotApp(MDApp):
             )
         Logger.info("Done creating menu items.")
 
-        print(self.root.ids.sketch_layout, self.root.ids.sketch_layout.children)
-        for child in self.root.ids.sketch_layout.children[::-1]:
-            self.root.ids.sketch_layout.remove_widget(
-                child)
-        print("Done")
+        # print(self.root.ids.sketch_layout, self.root.ids.sketch_layout.children)
+        # for child in self.root.ids.sketch_layout.children[::-1]:
+        #     self.root.ids.sketch_layout.remove_widget(
+        #         child)
+        if len(sys.argv)>1 and os.path.isfile(sys.argv[1]):
+            model = SketchGraph.from_file(sys.argv[1])
+            self.set_model(model)
+
 
 
 

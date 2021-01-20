@@ -37,7 +37,7 @@
     drag_distance: 0
     id: python_source_a
     width: 600
-    height: component_tools.height+len(component_list.children)*component_list.children[0].height
+    height: component_tools.height+sum([child.height for child in component_list.children])
     BoxLayout:
         id: component_box
         size_hint: [1, 1]
@@ -52,42 +52,42 @@
             adaptive_size: True
             id: component_list
             size_hint: [1, 1]
-            MDCard:
-                orientation: "horizontal"
-                MDIcon:
-                    icon: "folder-open"
-                    halign: "left"
-                    size_hint: [None,1]
-                    padding: ["8dp","8dp"]
-                MDLabel:
-                    halign: "left"
-                    padding: ["8dp","8dp"]
-                    text: "Source File"
-                    size_hint: [1,1]
-            MDCard:
-                orientation: "horizontal"
-                MDIcon:
-                    icon: "arrow-right-bold-circle"
-                    halign: "left"
-                    padding: ["8dp","8dp"]
-                    size_hint: [None,1]
-                MDLabel:
-                    halign: "left"
-                    padding: ["8dp","8dp"]
-                    text: "Input SVG (optional)"
-                    size_hint: [1,1]
-            MDCard:
-                orientation: "horizontal"
-                MDLabel:
-                    padding: ["8dp","8dp"]
-                    text: "Some Output"
-                    halign: "right"
-                    size_hint: [1,1]
-                MDIcon:
-                    icon: "arrow-right-bold-circle"
-                    halign: "right"
-                    padding: ["8dp","8dp"]
-                    size_hint: [None,1]
+            # MDCard:
+            #     orientation: "horizontal"
+            #     MDIcon:
+            #         icon: "folder-open"
+            #         halign: "left"
+            #         size_hint: [None,1]
+            #         padding: ["8dp","8dp"]
+            #     MDLabel:
+            #         halign: "left"
+            #         padding: ["8dp","8dp"]
+            #         text: "Source File"
+            #         size_hint: [1,1]
+            # MDCard:
+            #     orientation: "horizontal"
+            #     MDIcon:
+            #         icon: "arrow-right-bold-circle"
+            #         halign: "left"
+            #         padding: ["8dp","8dp"]
+            #         size_hint: [None,1]
+            #     MDLabel:
+            #         halign: "left"
+            #         padding: ["8dp","8dp"]
+            #         text: "Input SVG (optional)"
+            #         size_hint: [1,1]
+            # MDCard:
+            #     orientation: "horizontal"
+            #     MDLabel:
+            #         padding: ["8dp","8dp"]
+            #         text: "Some Output"
+            #         halign: "right"
+            #         size_hint: [1,1]
+            #     MDIcon:
+            #         icon: "arrow-right-bold-circle"
+            #         halign: "right"
+            #         padding: ["8dp","8dp"]
+            #         size_hint: [None,1]
 
 <SketchLayout>:
     do_rotation: False
@@ -141,18 +141,18 @@ Screen:
                                     # adaptive_height: True
                                     SketchLayout:
                                         id: sketch_layout
-                                        DragCard:
-                                            title: "Some Python Thing"
-                                            #size: component_box.size_hint_min
+                                        # DragCard:
+                                        #     title: "Some Python Thing"
+                                        #     #size: component_box.size_hint_min
 
-                                                # BoxLayout:
-                                                #     id: component_cards
-                                                #     orientation: "horizontal"
+                                        #         # BoxLayout:
+                                        #         #     id: component_cards
+                                        #         #     orientation: "horizontal"
                                                     
 
-                                        DragCard:
-                                            title: "Some Post Processor"
-                                            id: post_processor_b
+                                        # DragCard:
+                                        #     title: "Some Post Processor"
+                                        #     id: post_processor_b
 
                                     MDToolbar:
                                         title: "Sketch"
