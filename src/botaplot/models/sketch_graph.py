@@ -50,6 +50,15 @@ class Serializable:
             base['id'] = self.id
         return base
 
+    def controller_args(self):
+        """Returns a dict of kwarg:value for building controls/widgets"""
+        args = self.to_dict()
+        print("Dict is", args)
+        args = {kw:arg for (kw, arg) in args.items()
+                if not kw.startswith("_")}
+        return args
+
+
     @classmethod
     def from_dict(cls, data):
         return cls(data=data)
@@ -60,8 +69,8 @@ class BaseControl(Serializable):
     description = "Null Control"
     value_hint="None"
 
-    def __init__(self, value, description=None):
-        self.value = value
+    def __init__(self, value="", description=""):
+        self.value = value or ""
         self.description = description or "Null control"
 
     def to_dict(self):

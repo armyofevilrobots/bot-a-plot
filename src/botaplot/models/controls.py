@@ -24,7 +24,7 @@ class BoundedNumericControl(BaseControl):
 
     description="Numeric Range"
     type_hint="bounded_numeric"
-    valrange=None  # ie: 2.0<x<3.0
+    valrange="0.0<x<1.0"  # ie: 2.0<x<3.0
     _value=None
     
     

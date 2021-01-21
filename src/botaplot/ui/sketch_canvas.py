@@ -96,6 +96,7 @@ class SketchLayout(ScatterPlane):
         Logger.info("Creating a %s for %s" % (child_cls, model))
         return child_cls
 
+
     def _add_children_to_node(self, widget, node):
         """Add all the sources and sinks to a widget for a node"""
         for control in node.controls:
@@ -104,8 +105,9 @@ class SketchLayout(ScatterPlane):
                 Logger.error("Not adding UI component for model %s" % control)
                 continue
             child = child_cls(
-                value=control.value or "null",
-                description=control.description
+                # value=control.value or "null",
+                # description=control.description
+                **control.controller_args()
             )
             print("Child we added is", child)
             widget.ids.component_list.add_widget(child)

@@ -32,6 +32,7 @@ class FileOpener(EventDispatcher):
                  rootpath=os.path.expanduser("~"),
                  extensions=False):
 
+        Logger.info("Using %s as allowed extensions" % extensions)
         self.filemanager = MDFileManager(
             ext=extensions or list(),
             exit_manager=self.exit_manager,
