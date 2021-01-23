@@ -33,14 +33,17 @@ class TestSerialization(unittest.TestCase):
             BaseNode()
             for i in range(3)]
         for node in nodes:
-            node.sources.append(BaseSource(MediaType.PLOTTABLE, parent=node.id))
-            node.sinks.append(BaseSource(MediaType.PLOTTABLE, parent=node.id))
+            node.sources.append(BaseSource())
+            node.sinks.append(BaseSource())
         edges = [
             Edge(nodes[i].sources[0], nodes[i+1].sinks[0])
             for i in range(2)
         ]
-        nodes[0].controls.append(FileSelectorControl(
-            value=None, extension="svg", description="SVG FILE"))
+        nodes[0].controls.append(
+            FileSelectorControl(
+                value=None, extension=".svg", description="SVG FILE",
+                id=None))
+
         graph = SketchGraph(nodes, edges)
         dumpable = graph.to_dict()
         #print("DUMPABLE:", dumpable)

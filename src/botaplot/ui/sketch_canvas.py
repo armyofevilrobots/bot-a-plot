@@ -109,8 +109,11 @@ class SketchLayout(ScatterPlane):
                 # description=control.description
                 **control.controller_args()
             )
-            print("Child we added is", child)
             widget.ids.component_list.add_widget(child)
+            def on_value_change(obj, val):
+                Logger.info(f"On_value_change bind for {obj} with {val}")
+                control.value = val
+            child.bind(value=on_value_change)
         for sink in node.sinks:
             print("Adding sink:", sink)
             child = MDLabel(text=sink.__class__.__name__)

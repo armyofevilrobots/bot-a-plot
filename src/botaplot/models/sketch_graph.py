@@ -1,5 +1,6 @@
 from functools import wraps
 import os.path
+import logging
 import uuid
 from enum import Enum
 import hjson
@@ -18,7 +19,7 @@ def register_widget(klass):
         return klass
 
 
-def from_dict(data):
+def from_dict(data, parent=None):
     if data is None:
         return None
     if isinstance(data, list):
@@ -26,13 +27,19 @@ def from_dict(data):
     if isinstance(data, (int, str, float)):
         return data
     if "_type" not in data:
-        return {key:from_dict(val) for key,val in data.items()}
+        child = {key:from_dict(val) for key,val in data.items()}
+        return child
     if data['_type'] not in lookup_types:
         raise TypeError(f"Unknown type {data['_type']}")
-    
-    return lookup_types[data["_type"]](
-        **{key:from_dict(val) for key,val in data.items() if key != "_type"}
-    )
+
+    children = {key:from_dict(val) for key,val in data.items() if key != "_type"}
+    tmp = lookup_types[data["_type"]](
+        **children)
+    # This is a bit... odd...
+    # We create the children in a dict. Pass them in above as kwargs, and then after
+    # we have generated that parent object, set the children who are serializable to
+    # have a reference to their parent
+    return tmp
 
 class Serializable:
 
@@ -55,7 +62,7 @@ class Serializable:
         args = self.to_dict()
         print("Dict is", args)
         args = {kw:arg for (kw, arg) in args.items()
-                if not kw.startswith("_")}
+                if not kw.startswith("_") and kw is not "id" }
         return args
 
 
@@ -65,70 +72,70 @@ class Serializable:
 
 @register_type
 class BaseControl(Serializable):
-    value = None
+    _value=None
     description = "Null Control"
     value_hint="None"
+    parent = None
+    id = None
 
-    def __init__(self, value="", description=""):
+    def __init__(self, value="", description="", id=None):
         self.value = value or ""
         self.description = description or "Null control"
+        self.id = id or str(uuid.uuid4())
+        self.callbacks = list()
 
     def to_dict(self):
         base = super(BaseControl, self).to_dict()
         base['value'] = self.value
         base['description'] = self.description
+        base['id'] = self.id
         return base
 
 
-@register_type
-class MediaType(Serializable, Enum):
-    NULL=0
-    SVG=1
-    PLOTTABLE=2
-    FIELD=3  # A numpy matrix of values
+    @property
+    def value(self):
+        return self._value
 
-    def to_dict(self):
-        data = {"_type":"MediaType", "value":self.value}
-        return data
+    @value.setter
+    def value(self, val):
+        print("Value for",self, "changed to:", val)
+        print("Parent is ", self.parent)
+        print(self.__dict__)
+        if self.parent and hasattr(self.parent, "on_value_changed"):
+            print("Calling on_value_changed callback on parent")
+            self.parent.on_value_changed(self, val)
+        self._value = val
 
 
 class SourceSinkBase(Serializable):
 
-    def __init__(self, media_type, parent, id=None):
+    def __init__(self, id=None):
         self.id = id or str(uuid.uuid4())
-        self.parent = parent
-        self.media_type = media_type
 
     def to_dict(self):
         base = super(SourceSinkBase, self).to_dict()
-        base["media_type"]=self.media_type.to_dict()
-        base["parent"] = self.parent
         return base
-
-@register_type
-class BaseSink(SourceSinkBase):
-    """Source of some basic data"""
-    media_type = MediaType.NULL
-    parent = None  # This is a Node
-
-    def __init__(self, media_type, parent, id=None):
-        SourceSinkBase.__init__(self, media_type, parent, id)
 
 @register_type
 class BaseSource(SourceSinkBase):
     """Consumer of some basic data"""
-    media_type = MediaType.NULL
     parent = None  # This is a Node
 
-    def __init__(self, media_type, parent, id=None):
-        SourceSinkBase.__init__(self, media_type, parent, id)
+    def __init__(self, id=None):
+        SourceSinkBase.__init__(self, id)
+
+@register_type
+class BaseSink(SourceSinkBase):
+    """Source of some basic data"""
+    parent = None  # This is a Node
+    source_type = BaseSource
+
+    def __init__(self, id=None):
+        SourceSinkBase.__init__(self, id)
 
 @register_type
 class Edge(Serializable):
     id = None  # Unique ID
-    media_type = MediaType.NULL  # We have to match source&sink
-    last_hash = None  # What was the hash of the last output?
-    last_cycle = None  # What was the UUID of the last render cycle
     source = None  # This is a source
     sink = None  # This is a sink
 
@@ -136,9 +143,6 @@ class Edge(Serializable):
         self.id = id or str(uuid.uuid4())
         self.source = source
         self.sink = sink
-        if source.media_type != sink.media_type:
-            raise TypeError("Media types do not match.")
-        self.media_type = source.media_type
 
     def to_dict(self):
         base = super(Edge, self).to_dict()
@@ -165,8 +169,6 @@ class BaseNode(Serializable):
         self.controls = controls or list()
         self.meta = meta or dict()
 
-
-
     def to_dict(self):
         base = super(BaseNode, self).to_dict()
         base.update({
@@ -177,6 +179,15 @@ class BaseNode(Serializable):
             })
         return base
 
+    @classmethod
+    def create(cls, id=None):
+        return cls(id=id)
+
+    def on_value_changed(self, source, value):
+        """Called by any change to the controls or sources"""
+        print("%s on_value_changed via %s with new value %s" %(self, source, value))
+
+
 @register_type
 class SketchGraph(Serializable):
     """Represents a graph of nodes, sources, sinks, and connections all
@@ -184,12 +195,24 @@ class SketchGraph(Serializable):
     nodes = list()  # of nodes, eh
     edges = list()
     basedir = None
+    by_uuid = dict()
 
     def __init__(self, nodes=None, edges=None, meta=None, id=None):
         self.id = id or str(uuid.uuid4())
         self.nodes = nodes or list()
         self.edges = edges or list()
         self.meta = meta or dict()
+        # We backlink all the things
+        for node in self.nodes:
+            for control in node.controls:
+                control.parent = node
+            for source in node.sources:
+                source.parent = node
+            for sink in node.sinks:
+                sink.parent = node
+
+
+
 
     @classmethod
     def from_file(cls, path):
