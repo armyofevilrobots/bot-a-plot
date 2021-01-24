@@ -12,6 +12,7 @@ from kivy.uix.scatterlayout import ScatterLayout
 from kivy.factory import Factory
 from kivy.logger import Logger
 from kivy.graphics.transformation import Matrix
+from kivy.clock import Clock
 from uuid import uuid4
 from statistics import mean, median
 from ..models import *
@@ -29,17 +30,6 @@ class SketchLayout(ScatterPlane):
 
     def __init__(self, *args, **kwargs):
         super(SketchLayout, self).__init__(*args, **kwargs)
-        # with self.canvas:
-        #     Color(0.6, 0.0, 0.0)
-        #     self.connector_cb = Callback(self._update_spline)
-        #     self.bezier = Line(
-        #         bezier=[-200,-100, 200,100, 300,200, 500,500, 800,400],
-        #         segments=20,
-        #         width=16.0
-        #             )
-        #     Color(0,0,1.0)
-        #     Line(points=(-15,-15,15,15), width=4)
-        #     Line(points=(15,-15,-15,15), width=4)
         self.bind(pos=self.spline_redraw, size=self.spline_redraw, sketch_model=self.trigger_redraw)
         # These are the spline edges, which are just bezier lines
         self.edge_splines = WeakValueDictionary()  # source_uuid-sink_uuid
@@ -53,21 +43,29 @@ class SketchLayout(ScatterPlane):
 
     def on_start(self, *args, **kw):
         super(SketchLayout, self).on_start(*args, **kw)
-        # self.center_on_content()
 
     def trigger_redraw(self, *args, **kw):
         self.center_on_content()
 
 
-    def spline_redraw(self, *args):
-        Logger.info("Got a redraw.")
+    def _spline_redraw(self, *args):
+        """Actually redraw the spline on an update."""
         for key, spline in self.edge_splines.items():
-            Logger.info(f"Redrawing spline: {key}:{spline}")
             source_id, sink_id = key.split("_")
-            Logger.info(f"Spline {source_id} to {sink_id}")
             source = self.source_sink_lookup[source_id]
             sink = self.source_sink_lookup[sink_id]
             spline.bezier = self.calc_bezier_coords(source, sink)
+
+    def spline_redraw(self, *args):
+        """
+        This is done via a scheduled action, because position updates on
+        widgets lag, or don't match the actual events. This way, we get the
+        spline redraw to match the widgets after they settle. It adds a bit
+        of lag, but overall it looks better than the jitter we otherwise get
+        """
+        self._spline_redraw()
+        Clock.schedule_once(self._spline_redraw)
+
 
     @staticmethod
     def _spline_name(source, sink):
@@ -75,7 +73,6 @@ class SketchLayout(ScatterPlane):
 
     def _get_connector_widget(self, connector):
         if isinstance(connector, UIBaseSource):
-            Logger.info(f"Checking for connector: {connector.ids}")
             conn_widget = connector.ids["source_connect"]
         elif isinstance(connector, UIBaseSink):
             conn_widget = connector.ids["sink_connect"]
@@ -99,16 +96,8 @@ class SketchLayout(ScatterPlane):
     def calc_bezier_coords(self, source, sink):
         source_conn = self._get_connector_widget(source)
         sink_conn = self._get_connector_widget(sink)
-
         source_pos = self._calc_connector_pos(source)
         sink_pos = self._calc_connector_pos(sink)
-        # #foo = widget.ids.component_list.children[0]
-        # #foo = widget.children[0]
-        # pypos = python.to_parent(python.x, python.y)
-        # pppos = postproc.to_parent(postproc.x, postproc.y)
-
-        Logger.info("Widget A: %s", source_pos)
-        Logger.info("Widget B: %s", sink_pos)
         return [source_pos[0],source_pos[1],
                   source_pos[0]+200, source_pos[1],
                   sink_pos[0]-200, sink_pos[1],
@@ -155,20 +144,13 @@ class SketchLayout(ScatterPlane):
         for node in model.nodes:
             Logger.info(f"Creating sink connections for node {node.id}:{node} :: {node.sinks}")
             for sinkm in node.sinks:
-                Logger.info(f"Checking connections for sink {sinkm.id}:{sinkm} -> {sinkm.source}")
                 if sinkm.source is not None:
-                    Logger.info(f"Creating spline for {sinkm} to {sinkm.source}")
                     sourcew = self.source_sink_lookup[sinkm.source.id]
                     sinkw   = self.source_sink_lookup[sinkm.id]
-                    Logger.info(f"Found source/sink widgets: {sourcew}, {sinkw}")
                     self.edge_splines[f"{sinkm.source.id}_{sinkm.id}"] = \
                         self.create_edge_spline(sourcew, sinkw)
         self.sketch_model = model
         self.center_on_content()
-        # self.spline_redraw()
-        # self.canvas.ask_update()
-        self.parent.do_layout()
-    
 
     def get_ui_class_for_model(self, model):
         try:
@@ -209,6 +191,9 @@ class SketchLayout(ScatterPlane):
             widget.ids.component_list.add_widget(child)
             self.hint_con[source.id] = node
             self.source_sink_lookup[source.id] = child
+
+        # This ensures we redraw the spline with it's endpoints in the right spots
+        Clock.schedule_once(self._spline_redraw)
         
 
 
@@ -223,6 +208,11 @@ class SketchLayout(ScatterPlane):
         Logger.info("We found widget type: %s for node %s", widget_type, node)
         self._add_children_to_node(widget, node)
         widget.bind(pos=self.spline_redraw, size=self.spline_redraw)
+        def _update_meta(obj, event):
+            Logger.info(f"Got an update on obj {obj} with event {event} for node {node}")
+            node.meta["xpos"]=event[0]
+            node.meta["ypos"]=event[1]
+        widget.bind(pos=_update_meta)
         return widget
 
     def center_on_content(self):

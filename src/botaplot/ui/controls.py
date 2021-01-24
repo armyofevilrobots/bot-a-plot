@@ -79,7 +79,6 @@ class FileSelectorControl(BaseControl):
                 self.label_content = self.value[:8]+"\u2026"+self.value[-19:]
             else:
                 self.label_content = self.value
-            
 
     def browse_for_file(self):
         def set_file_value(obj, x):
@@ -95,6 +94,8 @@ class FileSelectorControl(BaseControl):
         super().__init__(*args, **kw)
         self.file_ok = False
         self.value = kw.get('value', "")
+        if self.value:
+            self.on_value(self, self.value)  # Make sure it's set as valid.
         self.extensions = kw.get('extension', "")
 
 

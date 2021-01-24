@@ -33,9 +33,6 @@ class SVGSink(BaseSink):
 @register_type
 class SVGNode(BaseNode):
 
-    # Reserved for caching
-    _paths = None
-    _attributes = None
 
     def __init__(self, sources=None, sinks=None, controls=None, meta=None, id=None):
         super().__init__(sources, sinks, controls, meta, id)
