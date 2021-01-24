@@ -209,7 +209,6 @@ class SketchLayout(ScatterPlane):
         self._add_children_to_node(widget, node)
         widget.bind(pos=self.spline_redraw, size=self.spline_redraw)
         def _update_meta(obj, event):
-            Logger.info(f"Got an update on obj {obj} with event {event} for node {node}")
             node.meta["xpos"]=event[0]
             node.meta["ypos"]=event[1]
         widget.bind(pos=_update_meta)
