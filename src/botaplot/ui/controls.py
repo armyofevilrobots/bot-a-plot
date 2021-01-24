@@ -15,7 +15,7 @@ BASECONTROL = '''
     MDIcon:
         icon: "block-helper"
         halign: "left"
-        padding: ["8dp","8dp"]
+        padding: ["12dp","12dp"]
         size_hint: [None,1]
     MDLabel:
         text: root.description
@@ -29,7 +29,7 @@ BASECONTROL = '''
     MDIconButton:
         icon: "folder-open"
         halign: "left"
-        padding: ["8dp","8dp"]
+        # padding: ["8dp","8dp"]
         size_hint: [None,1]
         on_release: root.browse_for_file()
     MDLabel:
@@ -40,7 +40,7 @@ BASECONTROL = '''
     MDIcon:
         icon: root.file_ok and "check-circle-outline" or "alert-outline"
         halign: "right"
-        padding: ["8dp","8dp"]
+        padding: ["12dp","12dp"]
         size_hint: [None,1]
 
 

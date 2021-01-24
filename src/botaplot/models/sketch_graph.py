@@ -4,6 +4,7 @@ import logging
 import uuid
 from enum import Enum
 import hjson
+import json
 
 lookup_types = {}
 
@@ -30,7 +31,10 @@ def from_dict(data, parent=None):
         child = {key:from_dict(val) for key,val in data.items()}
         return child
     if data['_type'] not in lookup_types:
-        raise TypeError(f"Unknown type {data['_type']}")
+        logging.error("Available registered types:\n %s" %
+                      json.dumps({k: str(v) for k,v in lookup_types.items()}, indent=2))
+        raise TypeError(f"Unknown type {data['_type']}. Did you annotate it with @register_type?")
+    
 
     children = {key:from_dict(val) for key,val in data.items() if key != "_type"}
     tmp = lookup_types[data["_type"]](
@@ -60,7 +64,6 @@ class Serializable:
     def controller_args(self):
         """Returns a dict of kwarg:value for building controls/widgets"""
         args = self.to_dict()
-        print("Dict is", args)
         args = {kw:arg for (kw, arg) in args.items()
                 if not kw.startswith("_") and kw is not "id" }
         return args
@@ -120,35 +123,81 @@ class SourceSinkBase(Serializable):
 class BaseSource(SourceSinkBase):
     """Consumer of some basic data"""
     parent = None  # This is a Node
+    sinks = None
 
     def __init__(self, id=None):
         SourceSinkBase.__init__(self, id)
+        self.sinks = list()
+
+    @property
+    def value(self):
+        return self.parent is not None and self.parent.value or None
+
+    @property
+    def on_value_change(self, source, new_value):
+        for sink in self.sinks:
+            if hasattr(sink, "on_value_change"):
+                sink.on_value_change(source, new_value)
 
 @register_type
 class BaseSink(SourceSinkBase):
     """Source of some basic data"""
     parent = None  # This is a Node
     source_type = BaseSource
+    _source = None
 
-    def __init__(self, id=None):
+    def __init__(self, id=None, source=None):
         SourceSinkBase.__init__(self, id)
+        self. source = source
 
-@register_type
-class Edge(Serializable):
-    id = None  # Unique ID
-    source = None  # This is a source
-    sink = None  # This is a sink
+    @property
+    def value(self):
+        return self.source is not None and self.source.value or None
 
-    def __init__(self, source, sink, id=None):
-        self.id = id or str(uuid.uuid4())
-        self.source = source
-        self.sink = sink
+    @property
+    def source(self):
+        return self._source
+
+    @source.setter
+    def source(self, val):
+        if isinstance(val, str):  # We're pre-creating this, so skip fancy stuff
+            self._source = val
+        else:
+            if self._source is not None and not isinstance(self._source, str):
+                self._source.sinks.remove(self)
+            self._source = val
+            if self._source is not None:
+                self._source.sinks.append(self)
+
+
+    @property
+    def on_value_change(self, source, new_value):
+        if hasattr(parent, "on_sink_change"):
+            self.parent.on_sink_change(self, new_value)
 
     def to_dict(self):
-        base = super(Edge, self).to_dict()
-        base['source'] = self.source.to_dict()
-        base['sink'] = self.sink.to_dict()
+        base = super().to_dict()
+        if self.source is not None:
+            logging.info(f"Adding source {self.source} to sink {self}")
+            base['source'] = self.source.id
         return base
+# @register_type
+# class Edge(Serializable):
+#     id = None  # Unique ID
+#     source = None  # This is a source
+#     sink = None  # This is a sink
+
+#     def __init__(self, source, sink, id=None):
+#         self.id = id or str(uuid.uuid4())
+
+#         self.source = source
+#         self.sink = sink
+
+#     def to_dict(self):
+#         base = super(Edge, self).to_dict()
+#         base['source'] = self.source.to_dict()
+#         base['sink'] = self.sink.to_dict()
+#         return base
 
 @register_type
 class BaseNode(Serializable):
@@ -193,26 +242,25 @@ class SketchGraph(Serializable):
     """Represents a graph of nodes, sources, sinks, and connections all
     together in a nice little bundle, with JSON serialization for saving."""
     nodes = list()  # of nodes, eh
-    edges = list()
     basedir = None
     by_uuid = dict()
 
-    def __init__(self, nodes=None, edges=None, meta=None, id=None):
+    def __init__(self, nodes=None, meta=None, id=None):
         self.id = id or str(uuid.uuid4())
         self.nodes = nodes or list()
-        self.edges = edges or list()
         self.meta = meta or dict()
         # We backlink all the things
+        _source_dict = {}
         for node in self.nodes:
             for control in node.controls:
                 control.parent = node
             for source in node.sources:
                 source.parent = node
+                _source_dict[source.id] = source
             for sink in node.sinks:
                 sink.parent = node
-
-
-
+                if isinstance(sink.source, str):
+                    sink.source = _source_dict[sink.source]
 
     @classmethod
     def from_file(cls, path):
@@ -226,21 +274,12 @@ class SketchGraph(Serializable):
         base.update({
             "meta": self.meta,
             "nodes": [node.to_dict() for node in self.nodes],
-            "edges": [edge.to_dict() for edge in self.edges],
             })
         return base
 
     def traverse(self):
         """Return an ordered list of items to render"""
-        sink2edge = {edge.sink:edge for edge in self.edges}
-        source2edge = {edge.source:edge for edge in self.edges}
-        starts = [node for node in self.nodes
-                  if not [sink2edge.get(sink) for sink in node.sinks]]
-        if not starts:
-            raise RuntimeError("No nodes to start from. We have a cycle.")
-
-        for start in starts:
-            pass
+        pass
 
 
     def render(self):

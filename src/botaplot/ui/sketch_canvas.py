@@ -1,3 +1,4 @@
+from weakref import WeakValueDictionary
 from kivymd.app import MDApp
 from kivymd.uix.card import MDCard
 from kivymd.uix.label import MDLabel
@@ -13,12 +14,18 @@ from kivy.logger import Logger
 from kivy.graphics.transformation import Matrix
 from uuid import uuid4
 from statistics import mean, median
+from ..models import *
 from ..models.sketch_graph import SketchGraph
+from ..models.svg_node import SVGNode
 from .controls import BaseControl
-
+from .svg_node import SVGNode, SVGSource
+from .node import BaseNode as UIBaseNode
+from .node import BaseSource as UIBaseSource
+from .node import BaseSink as UIBaseSink
 
 class SketchLayout(ScatterPlane):
     """Canvas that displays a sketch graph"""
+    sketch_model = ObjectProperty()
 
     def __init__(self, *args, **kwargs):
         super(SketchLayout, self).__init__(*args, **kwargs)
@@ -33,37 +40,95 @@ class SketchLayout(ScatterPlane):
         #     Color(0,0,1.0)
         #     Line(points=(-15,-15,15,15), width=4)
         #     Line(points=(15,-15,-15,15), width=4)
-        self.bind(pos=self.redraw, size=self.redraw)
+        self.bind(pos=self.spline_redraw, size=self.spline_redraw, sketch_model=self.trigger_redraw)
         # These are the spline edges, which are just bezier lines
-        self.edge_splines = dict()  # source_uuid-sink_uuid
+        self.edge_splines = WeakValueDictionary()  # source_uuid-sink_uuid
         # And these are the child nodes themselves
         self.nodes = dict()  # by uuid
         # Dict of source/sink IDs pointing at their parents
-        self.hint_con = dict()
+        self.hint_con = WeakValueDictionary()
+        # Sources and Sinks : Weakref dict of source/sink id to actual widgets
+        self.source_sink_lookup = WeakValueDictionary()
 
 
     def on_start(self, *args, **kw):
         super(SketchLayout, self).on_start(*args, **kw)
+        # self.center_on_content()
+
+    def trigger_redraw(self, *args, **kw):
         self.center_on_content()
 
-    def redraw(self, *args):
-        pass
+
+    def spline_redraw(self, *args):
+        Logger.info("Got a redraw.")
+        for key, spline in self.edge_splines.items():
+            Logger.info(f"Redrawing spline: {key}:{spline}")
+            source_id, sink_id = key.split("_")
+            Logger.info(f"Spline {source_id} to {sink_id}")
+            source = self.source_sink_lookup[source_id]
+            sink = self.source_sink_lookup[sink_id]
+            spline.bezier = self.calc_bezier_coords(source, sink)
 
     @staticmethod
-    def _spline_name(edge):
-        source = edge.source.id
-        sink = edge.sink.id
-        return f"{edge.source.id}-{edge.sink.id}"
+    def _spline_name(source, sink):
+        return f"{source.id}-{sink.id}"
+
+    def _get_connector_widget(self, connector):
+        if isinstance(connector, UIBaseSource):
+            Logger.info(f"Checking for connector: {connector.ids}")
+            conn_widget = connector.ids["source_connect"]
+        elif isinstance(connector, UIBaseSink):
+            conn_widget = connector.ids["sink_connect"]
+        else:
+            raise RuntimeError("Invalid connector %s" % connector)
+        return conn_widget
+
+    def _calc_connector_pos(self, connector):
+        conn_widget = self._get_connector_widget(connector)
+        card_parent = conn_widget.parent
+        list_parent = card_parent.parent
+        box_parent = list_parent.parent
+        node_parent = box_parent.parent
+        connector_pos = node_parent.to_parent(
+            *box_parent.to_parent(
+                *list_parent.to_parent(
+                    *card_parent.to_parent(
+                        *conn_widget.to_parent(*conn_widget.center)))))
+        return connector_pos
+
+    def calc_bezier_coords(self, source, sink):
+        source_conn = self._get_connector_widget(source)
+        sink_conn = self._get_connector_widget(sink)
+
+        source_pos = self._calc_connector_pos(source)
+        sink_pos = self._calc_connector_pos(sink)
+        # #foo = widget.ids.component_list.children[0]
+        # #foo = widget.children[0]
+        # pypos = python.to_parent(python.x, python.y)
+        # pppos = postproc.to_parent(postproc.x, postproc.y)
+
+        Logger.info("Widget A: %s", source_pos)
+        Logger.info("Widget B: %s", sink_pos)
+        return [source_pos[0],source_pos[1],
+                  source_pos[0]+200, source_pos[1],
+                  sink_pos[0]-200, sink_pos[1],
+                  sink_pos[0], sink_pos[1]]
+
+    def create_edge_spline(self, source, sink):
+        # python = MDApp.get_running_app().root.ids.python_source_a
+        # postproc = MDApp.get_running_app().root.ids.post_processor_b
+        with self.canvas:
+            Color(0.6, 0.0, 0.0)
+            bezier = Line(
+                bezier = self.calc_bezier_coords(source, sink),
+                segments=4,
+                width=12)
+        return bezier
 
     def update(self, model: SketchGraph):
         """Cleans out old entries, creates a new graph, redraws"""
-        edges_to_delete = set(self.edge_splines.keys()
-                              ).difference([self._spline_name(edge)
-                                            for edge in model.edges])
-        Logger.info("Cleaning out old edges: %s" % edges_to_delete)
-        for edge in edges_to_delete:
-            self.canvas.remove(self.edge_splines[edge])
-            del self.edge_splines[edge]
+        for key in self.edge_splines.keys():
+            self.canvas.remove(self.edge_splines[key])
         for nid, widget in self.nodes.items():
             if nid not in [node.id for node in model.nodes]:
                 self.canvas.remove(self.nodes[nid])
@@ -86,6 +151,24 @@ class SketchLayout(ScatterPlane):
             self.add_widget(widget)
             self.nodes[node.id] = widget
 
+        # Now connect them up
+        for node in model.nodes:
+            Logger.info(f"Creating sink connections for node {node.id}:{node} :: {node.sinks}")
+            for sinkm in node.sinks:
+                Logger.info(f"Checking connections for sink {sinkm.id}:{sinkm} -> {sinkm.source}")
+                if sinkm.source is not None:
+                    Logger.info(f"Creating spline for {sinkm} to {sinkm.source}")
+                    sourcew = self.source_sink_lookup[sinkm.source.id]
+                    sinkw   = self.source_sink_lookup[sinkm.id]
+                    Logger.info(f"Found source/sink widgets: {sourcew}, {sinkw}")
+                    self.edge_splines[f"{sinkm.source.id}_{sinkm.id}"] = \
+                        self.create_edge_spline(sourcew, sinkw)
+        self.sketch_model = model
+        self.center_on_content()
+        # self.spline_redraw()
+        # self.canvas.ask_update()
+        self.parent.do_layout()
+    
 
     def get_ui_class_for_model(self, model):
         try:
@@ -115,43 +198,32 @@ class SketchLayout(ScatterPlane):
                 control.value = val
             child.bind(value=on_value_change)
         for sink in node.sinks:
-            print("Adding sink:", sink)
-            child = MDLabel(text=sink.__class__.__name__)
+            sink_ui_cls = getattr(Factory, sink.__class__.__name__, None)
+            child = sink_ui_cls(**sink.controller_args())
             widget.ids.component_list.add_widget(child)
+            self.hint_con[sink.id] = node
+            self.source_sink_lookup[sink.id] = child
         for source in node.sources:
-            child = MDLabel(text=source.__class__.__name__)
+            source_ui_cls = getattr(Factory, source.__class__.__name__, None)
+            child = source_ui_cls(**source.controller_args())
             widget.ids.component_list.add_widget(child)
+            self.hint_con[source.id] = node
+            self.source_sink_lookup[source.id] = child
+        
 
 
 
     def _build_widget_for_node(self, node, x_hint=0):
-        widget = getattr(Factory, node.__class__.__name__, None)(
+        widget_type = getattr(Factory, node.__class__.__name__, None)
+        widget = widget_type(
             pos=node.meta.get('position', (x_hint, 0)),
             size=node.meta.get('size', (640, 0)),
-            title=node.meta.get('title', "BaseNode")
+            title=node.meta.get('title', node.__class__.__name__)
         )
+        Logger.info("We found widget type: %s for node %s", widget_type, node)
         self._add_children_to_node(widget, node)
+        widget.bind(pos=self.spline_redraw, size=self.spline_redraw)
         return widget
-
-
-    def _update_spline(self, instruction):
-        pass
-
-        # python = MDApp.get_running_app().root.ids.python_source_a
-        # postproc = MDApp.get_running_app().root.ids.post_processor_b
-        # #foo = widget.ids.component_list.children[0]
-        # #foo = widget.children[0]
-        # pypos = python.to_parent(python.x, python.y)
-        # pppos = postproc.to_parent(postproc.x, postproc.y)
-        
-        # Logger.info("Widget A: %s", pypos)
-        # Logger.info("Widget B: %s", pppos)
-
-        # self.bezier.bezier = [pypos[0]+python.width,pypos[1],
-        #                       pypos[0]+python.width*2, pypos[1],
-        #                       #(pypos[0]+pppos[0])/2,(pypos[1]+pppos[1])/2,
-        #                       pppos[0]-postproc.width,pppos[1],
-        #                       pppos[0], pppos[1]]
 
     def center_on_content(self):
         if len(self.children):

@@ -31,27 +31,6 @@
             id: md_list
 
 
-<DragCard>:
-    drag_rectangle: self.x, self.y, self.width, self.height
-    drag_timeout: 10000000
-    drag_distance: 0
-    id: python_source_a
-    width: 600
-    height: component_tools.height+sum([child.height for child in component_list.children])
-    BoxLayout:
-        id: component_box
-        size_hint: [1, 1]
-        orientation: 'vertical'
-        adaptive_size: True
-        MDToolbar:
-            id: component_tools
-            title: root.title
-            right_action_items: root.actions
-            font_size: "12sp"
-        MDList:
-            adaptive_size: True
-            id: component_list
-            size_hint: [1, 1]
             # MDCard:
             #     orientation: "horizontal"
             #     MDIcon:

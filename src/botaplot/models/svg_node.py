@@ -1,16 +1,19 @@
-from .sketch_graph import BaseNode, BaseSource
+from .sketch_graph import BaseNode, BaseSource, BaseSink, register_type
 from botaplot.models.controls import *
 from svgpathtools import svg2paths, wsvg
 import logging
 
 
+@register_type
 class SVGSource(BaseSource):
-    def __init__(self, parent, id=None):
-        super().__init__(parent, id)
+    parent = None
+
+    def __init__(self, id=None):
+        super().__init__(id)
 
     @classmethod
-    def create(cls, parent, id=None):
-        return cls(parent, id)
+    def create(cls, id=None):
+        return cls(id)
 
     @property
     def value(self):
@@ -23,7 +26,11 @@ class SVGSource(BaseSource):
     # We should override onvaluechanged here so that we can handle
     # the svg file changing, or NOT changing, and have a cache.
 
+@register_type
+class SVGSink(BaseSink):
+    source_type = SVGSource
 
+@register_type
 class SVGNode(BaseNode):
 
     # Reserved for caching

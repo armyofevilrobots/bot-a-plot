@@ -5,6 +5,7 @@ import math
 import hjson
 from botaplot.models.sketch_graph import *
 from botaplot.models.controls import *
+from botaplot.models.svg_node import SVGSource, SVGSink, SVGNode
 
 class TestNodeTypes(unittest.TestCase):
 
@@ -29,22 +30,30 @@ class TestSerialization(unittest.TestCase):
 
     def test_serialize_graph(self):
         # Create 3 basenodes
-        nodes = [
-            BaseNode()
-            for i in range(3)]
-        for node in nodes:
-            node.sources.append(BaseSource())
-            node.sinks.append(BaseSource())
-        edges = [
-            Edge(nodes[i].sources[0], nodes[i+1].sinks[0])
-            for i in range(2)
-        ]
-        nodes[0].controls.append(
-            FileSelectorControl(
-                value=None, extension=".svg", description="SVG FILE",
-                id=None))
+        nodes = list()
+        tmp_svg_src = SVGSource()
+        tmp_file_ctl = FileSelectorControl(
+            value=None, extension=".svg", description="SVG FILE",
+            id=None)
+        nodes.append(SVGNode(
+            [tmp_svg_src, ],
+            None,
+            [tmp_file_ctl, ]
+        ))
+        tmp_svg_src.parent = nodes[0]
+        tmp_file_ctl.parent = nodes[0]
 
-        graph = SketchGraph(nodes, edges)
+
+        tmp2_svg_sink = SVGSink()
+        tmp2_svg_sink.source = tmp_svg_src
+        nodes.append(BaseNode(
+            None,
+            [tmp2_svg_sink, ],
+            None
+        ))
+        tmp2_svg_sink.parent = nodes[1]
+
+        graph = SketchGraph(nodes)  #, edges)
         dumpable = graph.to_dict()
         #print("DUMPABLE:", dumpable)
         hj = hjson.dumps(dumpable)
@@ -52,7 +61,8 @@ class TestSerialization(unittest.TestCase):
         undump = hjson.loads(hj)
 
         newgraph = from_dict(data=undump)
-        #print(newgraph.to_dict())
+        print(newgraph.to_dict())
+        self.maxDiff=65535
         self.assertDictEqual(newgraph.to_dict(), dumpable)
 
 
