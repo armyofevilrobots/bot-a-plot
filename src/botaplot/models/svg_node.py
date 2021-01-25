@@ -93,3 +93,7 @@ class SVGPreviewNode(BaseNode):
         node = cls(id=id)
         node.sinks.append(SVGSink.create())
         return node
+
+    def on_sink_changed(self, source, value):
+        logging.info(f"On sink changed for SVGPreviewNode {self}")
+        self.value = value
