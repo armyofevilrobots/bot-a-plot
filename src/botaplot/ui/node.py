@@ -12,22 +12,22 @@ BASE_NODE_KV = """
     drag_rectangle: self.x, self.y, self.width, self.height
     drag_timeout: 10000000
     drag_distance: 0
-    id: python_source_a
     width: 600
     height: component_tools.height+sum([child.height for child in component_list.children])
     BoxLayout:
         id: component_box
         size_hint: [1, 1]
         orientation: 'vertical'
-        adaptive_size: True
+        #adaptive_size: True
+        adaptive_height: True
         MDToolbar:
             id: component_tools
             title: root.title
             right_action_items: root.actions
             font_size: "12sp"
         MDList:
-            adaptive_size: True
             id: component_list
+            adaptive_size: True
             size_hint: [1, 1]
 """
 
@@ -49,6 +49,8 @@ class DragCard(DragBehavior, MDCard):
 class BaseNode(DragCard):
     icon = StringProperty("help")
     title = StringProperty("BaseNode")
+    value = ObjectProperty()  # Used by events all over the place...
+
 
 
 class BaseSource(MDCard):

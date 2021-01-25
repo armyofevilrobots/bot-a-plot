@@ -243,6 +243,7 @@ class BaseNode(Serializable):
         return base
 
     def watch(self, callback):
+        logging.info(f"Adding callback {callback} to node {self.__class__}::{self}")
         self.callbacks.append(callback)
 
     @classmethod
@@ -258,6 +259,7 @@ class BaseNode(Serializable):
         change our internal SVG value, and update our sources.
         """
         print("%s on_value_changed via %s with new value %s" % (self, source, value))
+        self.value = value
 
     @property
     def value(self):
@@ -265,6 +267,7 @@ class BaseNode(Serializable):
 
     @value.setter
     def value(self, val):
+        logging.info(f"In the value setter on node {self.__class__}::{self} with value {val}")
         self._value = val
         for callback in self.callbacks:
             callback(self, val)

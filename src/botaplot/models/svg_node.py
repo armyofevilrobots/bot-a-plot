@@ -62,10 +62,6 @@ class SVGNode(BaseNode):
         if isinstance(source, FileSelectorControl):
             logging.info(f"Setting {self.__class__}:{self} value to {value}")
             self.value = value
-        # for control in self.controls:
-            # if isinstance(control, SVGPreviewControl):
-            # if control
-            #     control.on_value_change(source, value)
 
 
 @register_type
@@ -75,6 +71,7 @@ class SVGPreviewControl(BaseControl):
 
     def on_value_change(self, source, value):
         logging.info("On value change on the preview image")
+
 
 @register_type
 class SVGPreviewNode(BaseNode):

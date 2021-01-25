@@ -69,7 +69,8 @@ class SketchLayout(ScatterPlane):
     def _spline_name(source, sink):
         return f"{source.id}-{sink.id}"
 
-    def _get_connector_widget(self, connector):
+    @staticmethod
+    def _get_connector_widget(connector):
         if isinstance(connector, UIBaseSource):
             conn_widget = connector.ids["source_connect"]
         elif isinstance(connector, UIBaseSink):
@@ -152,7 +153,8 @@ class SketchLayout(ScatterPlane):
         # This ensures we redraw the spline with it's endpoints in the right spots
         Clock.schedule_once(self._spline_redraw)
 
-    def get_ui_class_for_model(self, model):
+    @staticmethod
+    def get_ui_class_for_model(model):
         try:
             child_cls = getattr(Factory, model.__class__.__name__, None)
         except:
@@ -177,6 +179,8 @@ class SketchLayout(ScatterPlane):
                 Logger.info(f"On_value_change bind for {obj} with {val}")
                 control.value = val
             child.bind(value=on_value_change)
+            if child.value:
+                on_value_change(child, child.value)
 
         for sink in node.sinks:
             sink_ui_cls = getattr(Factory, sink.__class__.__name__, None)
@@ -191,14 +195,17 @@ class SketchLayout(ScatterPlane):
             self.hint_con[source.id] = node
             self.source_sink_lookup[source.id] = child
 
-
-    def _build_widget_for_node(self, node, x_hint=0):
+    def _build_widget_for_node(self, node, x_hint=0.0):
         widget_type = getattr(Factory, node.__class__.__name__, None)
         widget = widget_type(
             pos=node.meta.get('position', (x_hint, 0)),
             size=node.meta.get('size', (640, 0)),
             title=node.meta.get('title', node.__class__.__name__)
         )
+        def _update_widget_viewmodel(source, value):
+            Logger.info(f"Updating viewmodel on {widget} with {value}")
+            widget.value = value
+        node.watch(_update_widget_viewmodel)
         Logger.info("We found widget type: %s for node %s", widget_type, node)
         self._add_children_to_node(widget, node)
         widget.bind(pos=self.spline_redraw, size=self.spline_redraw)

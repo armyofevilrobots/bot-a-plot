@@ -71,7 +71,7 @@ class FileSelectorControl(BaseControl):
 
     def on_value(self, obj, value):
         super().on_value(obj, value)
-        Logger.info("On value change called with new value %s" % value)
+        Logger.info("On value called with new value %s" % value)
         if not os.path.isfile(value):
             self.file_ok = False
             self.label_content = self.description
