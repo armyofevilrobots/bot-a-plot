@@ -22,18 +22,18 @@ class TestPlottable(unittest.TestCase):
         ])
 
     def test_len_plottable(self):
-        self.assertEquals(len(self.plottable), len(self.plottable.chunks))
+        self.assertEqual(len(self.plottable), len(self.plottable.chunks))
 
     def test_iterate_plottable(self):
         """Draw a square, post it"""
         i = 0
         for item in self.plottable:
             i += 1
-        self.assertEquals(i, 2)
+        self.assertEqual(i, 2)
 
     def test_pop_plottable(self):
         tmp = self.plottable.pop()
-        self.assertEquals(len(self.plottable), 1)
+        self.assertEqual(len(self.plottable), 1)
 
 
     def test_optimize(self):
@@ -45,4 +45,4 @@ class TestPlottable(unittest.TestCase):
             ])
 
         # It should reverse that last line
-        self.assertEquals(tp[2][0], (120,32))
+        self.assertEqual(tp[2][0], (120,32))

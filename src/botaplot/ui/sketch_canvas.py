@@ -24,6 +24,7 @@ from .node import BaseNode as UIBaseNode
 from .node import BaseSource as UIBaseSource
 from .node import BaseSink as UIBaseSink
 
+
 class SketchLayout(ScatterPlane):
     """Canvas that displays a sketch graph"""
     sketch_model = ObjectProperty()
@@ -40,13 +41,11 @@ class SketchLayout(ScatterPlane):
         # Sources and Sinks : Weakref dict of source/sink id to actual widgets
         self.source_sink_lookup = WeakValueDictionary()
 
-
     def on_start(self, *args, **kw):
         super(SketchLayout, self).on_start(*args, **kw)
 
     def trigger_redraw(self, *args, **kw):
         self.center_on_content()
-
 
     def _spline_redraw(self, *args):
         """Actually redraw the spline on an update."""
@@ -65,7 +64,6 @@ class SketchLayout(ScatterPlane):
         """
         self._spline_redraw()
         Clock.schedule_once(self._spline_redraw)
-
 
     @staticmethod
     def _spline_name(source, sink):
@@ -98,10 +96,10 @@ class SketchLayout(ScatterPlane):
         sink_conn = self._get_connector_widget(sink)
         source_pos = self._calc_connector_pos(source)
         sink_pos = self._calc_connector_pos(sink)
-        return [source_pos[0],source_pos[1],
-                  source_pos[0]+200, source_pos[1],
-                  sink_pos[0]-200, sink_pos[1],
-                  sink_pos[0], sink_pos[1]]
+        return [source_pos[0], source_pos[1],
+                source_pos[0] + 200, source_pos[1],
+                sink_pos[0] - 200, sink_pos[1],
+                sink_pos[0], sink_pos[1]]
 
     def create_edge_spline(self, source, sink):
         # python = MDApp.get_running_app().root.ids.python_source_a
@@ -109,7 +107,7 @@ class SketchLayout(ScatterPlane):
         with self.canvas:
             Color(0.6, 0.0, 0.0)
             bezier = Line(
-                bezier = self.calc_bezier_coords(source, sink),
+                bezier=self.calc_bezier_coords(source, sink),
                 segments=4,
                 width=12)
         return bezier
@@ -128,8 +126,8 @@ class SketchLayout(ScatterPlane):
                 del self.nodes[nid]
         Logger.info("Done deleting all orphaned widgets")
 
-        #If no meta on position, use this as xpos, with y=0
-        x_hint = -(len(model.nodes)*800.0)/2.0
+        # If no meta on position, use this as xpos, with y=0
+        x_hint = -(len(model.nodes) * 800.0) / 2.0
         for node in model.nodes:
             Logger.info("Adding node %s." % node)
             if node.id in self.nodes:
@@ -146,11 +144,13 @@ class SketchLayout(ScatterPlane):
             for sinkm in node.sinks:
                 if sinkm.source is not None:
                     sourcew = self.source_sink_lookup[sinkm.source.id]
-                    sinkw   = self.source_sink_lookup[sinkm.id]
+                    sinkw = self.source_sink_lookup[sinkm.id]
                     self.edge_splines[f"{sinkm.source.id}_{sinkm.id}"] = \
                         self.create_edge_spline(sourcew, sinkw)
         self.sketch_model = model
         self.center_on_content()
+        # This ensures we redraw the spline with it's endpoints in the right spots
+        Clock.schedule_once(self._spline_redraw)
 
     def get_ui_class_for_model(self, model):
         try:
@@ -161,7 +161,6 @@ class SketchLayout(ScatterPlane):
         Logger.info("Creating a %s for %s" % (child_cls, model))
         return child_cls
 
-
     def _add_children_to_node(self, widget, node):
         """Add all the sources and sinks to a widget for a node"""
         for control in node.controls:
@@ -170,15 +169,15 @@ class SketchLayout(ScatterPlane):
                 Logger.error("Not adding UI component for model %s" % control)
                 continue
             child = child_cls(
-                # value=control.value or "null",
-                # description=control.description
                 **control.controller_args()
             )
             widget.ids.component_list.add_widget(child)
+
             def on_value_change(obj, val):
                 Logger.info(f"On_value_change bind for {obj} with {val}")
                 control.value = val
             child.bind(value=on_value_change)
+
         for sink in node.sinks:
             sink_ui_cls = getattr(Factory, sink.__class__.__name__, None)
             child = sink_ui_cls(**sink.controller_args())
@@ -192,11 +191,6 @@ class SketchLayout(ScatterPlane):
             self.hint_con[source.id] = node
             self.source_sink_lookup[source.id] = child
 
-        # This ensures we redraw the spline with it's endpoints in the right spots
-        Clock.schedule_once(self._spline_redraw)
-        
-
-
 
     def _build_widget_for_node(self, node, x_hint=0):
         widget_type = getattr(Factory, node.__class__.__name__, None)
@@ -208,9 +202,11 @@ class SketchLayout(ScatterPlane):
         Logger.info("We found widget type: %s for node %s", widget_type, node)
         self._add_children_to_node(widget, node)
         widget.bind(pos=self.spline_redraw, size=self.spline_redraw)
+
         def _update_meta(obj, event):
-            node.meta["xpos"]=event[0]
-            node.meta["ypos"]=event[1]
+            node.meta["xpos"] = event[0]
+            node.meta["ypos"] = event[1]
+
         widget.bind(pos=_update_meta)
         return widget
 
@@ -221,18 +217,18 @@ class SketchLayout(ScatterPlane):
             width = max([w.center_x for w in self.children]) - min([w.center_x for w in self.children])
             height = max([w.center_y for w in self.children]) - min([w.center_y for w in self.children])
 
-            if width>0 and height>0:
-                optscale = min(self.width/width, self.height/height)
+            if width > 0 and height > 0:
+                optscale = min(self.width / width, self.height / height)
                 self.scale = max(0.25, min(optscale, 2.0))
             else:
                 self.scale = 1
 
             dx, dy = self.to_parent(mean_x, mean_y)
-            self.center = self.parent.width/2+self.center[0]-dx, self.parent.height/2+self.center[1]-dy
+            self.center = self.parent.width / 2 + self.center[0] - dx, self.parent.height / 2 + self.center[1] - dy
         else:
             self.scale = 0.25
-            self.center_x = self.parent.width/2
-            self.center_y = self.parent.height/2 - 400
+            self.center_x = self.parent.width / 2
+            self.center_y = self.parent.height / 2 - 400
 
     def on_touch_down(self, touch):
         """Resize the scatter when the mouse is scrolled"""
@@ -246,15 +242,12 @@ class SketchLayout(ScatterPlane):
                                          anchor=touch.pos)
             elif touch.button == 'scrollup':
                 if self.scale > 0.25:
-                    self.apply_transform(Matrix().scale(1.0/1.05, 1.0/1.05, 1.0/1.05),
+                    self.apply_transform(Matrix().scale(1.0 / 1.05, 1.0 / 1.05, 1.0 / 1.05),
                                          anchor=touch.pos)
 
         # If some other kind of "touch": Fall back on Scatter's behavior
         else:
             super(SketchLayout, self).on_touch_down(touch)
-
-
-
 
 
 Factory.register('SketchLayout', cls=SketchLayout)

@@ -8,14 +8,17 @@ import json
 
 lookup_types = {}
 
+
 def register_type(klass):
     """Pass a class for a node type """
     lookup_types[klass._hname()] = klass
     return klass
 
+
 def register_widget(klass):
     """Pass a class for a widget """
     widget_types[klass._hname()] = klass
+
     def wrapper(klass):
         return klass
 
@@ -28,15 +31,14 @@ def from_dict(data, parent=None):
     if isinstance(data, (int, str, float)):
         return data
     if "_type" not in data:
-        child = {key:from_dict(val) for key,val in data.items()}
+        child = {key: from_dict(val) for key, val in data.items()}
         return child
     if data['_type'] not in lookup_types:
         logging.error("Available registered types:\n %s" %
-                      json.dumps({k: str(v) for k,v in lookup_types.items()}, indent=2))
+                      json.dumps({k: str(v) for k, v in lookup_types.items()}, indent=2))
         raise TypeError(f"Unknown type {data['_type']}. Did you annotate it with @register_type?")
-    
 
-    children = {key:from_dict(val) for key,val in data.items() if key != "_type"}
+    children = {key: from_dict(val) for key, val in data.items() if key != "_type"}
     tmp = lookup_types[data["_type"]](
         **children)
     # This is a bit... odd...
@@ -44,6 +46,7 @@ def from_dict(data, parent=None):
     # we have generated that parent object, set the children who are serializable to
     # have a reference to their parent
     return tmp
+
 
 class Serializable:
 
@@ -64,20 +67,20 @@ class Serializable:
     def controller_args(self):
         """Returns a dict of kwarg:value for building controls/widgets"""
         args = self.to_dict()
-        args = {kw:arg for (kw, arg) in args.items()
-                if not kw.startswith("_") and kw is not "id" }
+        args = {kw: arg for (kw, arg) in args.items()
+                if not kw.startswith("_") and kw != "id"}
         return args
-
 
     @classmethod
     def from_dict(cls, data):
         return cls(data=data)
 
+
 @register_type
 class BaseControl(Serializable):
-    _value=None
+    _value = None
     description = "Null Control"
-    value_hint="None"
+    value_hint = "None"
     parent = None
     id = None
 
@@ -94,18 +97,13 @@ class BaseControl(Serializable):
         base['id'] = self.id
         return base
 
-
     @property
     def value(self):
         return self._value
 
     @value.setter
     def value(self, val):
-        print("Value for",self, "changed to:", val)
-        print("Parent is ", self.parent)
-        print(self.__dict__)
         if self.parent and hasattr(self.parent, "on_value_changed"):
-            print("Calling on_value_changed callback on parent")
             self.parent.on_value_changed(self, val)
         self._value = val
 
@@ -118,6 +116,11 @@ class SourceSinkBase(Serializable):
     def to_dict(self):
         base = super(SourceSinkBase, self).to_dict()
         return base
+
+    @classmethod
+    def create(cls, id=None):
+        return cls(id)
+
 
 @register_type
 class BaseSource(SourceSinkBase):
@@ -139,6 +142,7 @@ class BaseSource(SourceSinkBase):
             if hasattr(sink, "on_value_change"):
                 sink.on_value_change(source, new_value)
 
+
 @register_type
 class BaseSink(SourceSinkBase):
     """Source of some basic data"""
@@ -148,7 +152,7 @@ class BaseSink(SourceSinkBase):
 
     def __init__(self, id=None, source=None):
         SourceSinkBase.__init__(self, id)
-        self. source = source
+        self.source = source
 
     @property
     def value(self):
@@ -169,10 +173,11 @@ class BaseSink(SourceSinkBase):
             if self._source is not None:
                 self._source.sinks.append(self)
 
-
     @property
     def on_value_change(self, source, new_value):
-        if hasattr(parent, "on_sink_change"):
+        """This gets called any time the source on the other side of the
+        sink changes."""
+        if hasattr(self.parent, "on_sink_change"):
             self.parent.on_sink_change(self, new_value)
 
     def to_dict(self):
@@ -181,6 +186,8 @@ class BaseSink(SourceSinkBase):
             logging.info(f"Adding source {self.source} to sink {self}")
             base['source'] = self.source.id
         return base
+
+
 # @register_type
 # class Edge(Serializable):
 #     id = None  # Unique ID
@@ -205,18 +212,25 @@ class BaseNode(Serializable):
     group of sources and sinks"""
 
     # I/O
-    sources=list()  # No sources
-    sinks=list()    # No sinks either
+    sources = list()  # No sources
+    sinks = list()  # No sinks either
 
     controls = list()  # These are widgets
     meta = dict()  # This contains layout data, and other meta
+    callbacks = None  # List of callbacks (per object)
+
+
+    # Where we store the value we propagate up
+    value = None
 
     def __init__(self, sources=None, sinks=None, controls=None, meta=None, id=None):
+        self.callbacks = list()
         self.id = id or str(uuid.uuid4())
         self.sources = sources or list()
         self.sinks = sinks or list()
         self.controls = controls or list()
         self.meta = meta or dict()
+        self._value = None
 
     def to_dict(self):
         base = super(BaseNode, self).to_dict()
@@ -225,17 +239,38 @@ class BaseNode(Serializable):
             "sinks": [sink.to_dict() for sink in self.sinks],
             "sources": [source.to_dict() for source in self.sources],
             "controls": [control.to_dict() for control in self.controls],
-            })
+        })
         return base
+
+    def watch(self, callback):
+        self.callbacks.append(callback)
 
     @classmethod
     def create(cls, id=None):
         return cls(id=id)
 
     def on_value_changed(self, source, value):
-        """Called by any change to the controls or sources"""
-        print("%s on_value_changed via %s with new value %s" %(self, source, value))
+        """This is called when ANY child changes for ANY reason. By inspecting
+        the 'source' field, we can determine what is changing, and how to consume
+        it. For example, if a control changes, we'll get that for the source,
+        and we can determine the action we take against our own value.
+        ie: If an SVG file control changes in an SVG node, we can decide to
+        change our internal SVG value, and update our sources.
+        """
+        print("%s on_value_changed via %s with new value %s" % (self, source, value))
 
+    @property
+    def value(self):
+        return self._value
+
+    @value.setter
+    def value(self, val):
+        self._value = val
+        for callback in self.callbacks:
+            callback(self, val)
+        for source in self.sources:
+            if hasattr(source, "on_value_changed"):
+                source.on_value_changed(self, val)
 
 @register_type
 class SketchGraph(Serializable):
@@ -274,13 +309,12 @@ class SketchGraph(Serializable):
         base.update({
             "meta": self.meta,
             "nodes": [node.to_dict() for node in self.nodes],
-            })
+        })
         return base
 
     def traverse(self):
         """Return an ordered list of items to render"""
         pass
-
 
     def render(self):
         """Cycle through the nodes and run their calculations, generating

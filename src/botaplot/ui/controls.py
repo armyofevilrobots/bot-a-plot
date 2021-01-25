@@ -46,6 +46,7 @@ BASECONTROL = '''
 
 '''
 
+
 class BaseControl(MDCard):
     description = StringProperty()
     extension = StringProperty()
@@ -53,6 +54,7 @@ class BaseControl(MDCard):
     label_content = StringProperty()
 
     def on_value(self, obj, value):
+        Logger.info(f"On value called on the {self} node")
         pass
 
     def __init__(self, *args, **kw):
@@ -61,22 +63,22 @@ class BaseControl(MDCard):
         if kw.get('value') is not None:
             self.value = kw.get('value')
 
+
 class FileSelectorControl(BaseControl):
     value = StringProperty()
     file_ok = BooleanProperty(False)
     label_content = StringProperty()
 
-    #def on_value_change(self, obj, new_value):
     def on_value(self, obj, value):
         super().on_value(obj, value)
         Logger.info("On value change called with new value %s" % value)
         if not os.path.isfile(value):
             self.file_ok = False
-            self.label_content=self.description
+            self.label_content = self.description
         else:
             self.file_ok = True
             if len(self.value) > 20:
-                self.label_content = self.value[:8]+"\u2026"+self.value[-19:]
+                self.label_content = self.value[:8] + "\u2026" + self.value[-19:]
             else:
                 self.label_content = self.value
 
@@ -84,10 +86,10 @@ class FileSelectorControl(BaseControl):
         def set_file_value(obj, x):
             Logger.info(f"We got {obj},{x} for our params")
             self.value = x
+
         opener = FileOpener(set_file_value,
                             extensions=[self.extension, ])
         opener.show()
-
 
     def __init__(self, *args, **kw):
         Logger.debug("Creating widget with kw: ", kw)
@@ -97,7 +99,6 @@ class FileSelectorControl(BaseControl):
         if self.value:
             self.on_value(self, self.value)  # Make sure it's set as valid.
         self.extensions = kw.get('extension', "")
-
 
 
 Builder.load_string(BASECONTROL)
