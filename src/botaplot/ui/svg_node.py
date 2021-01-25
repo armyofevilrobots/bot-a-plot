@@ -10,6 +10,7 @@ from kivy.uix.image import Image
 from . import BaseControl
 from .node import BaseNode, BaseSource, BaseSink
 from ..resources import resource_path
+from svgpathtools.paths2svg import wsvg
 
 import cairosvg
 
@@ -97,9 +98,9 @@ class SVGNode(BaseNode):
         print(self.ids.component_list)
         self.preview_img = Image(
             source=resource_path("images", "no_such_image.png"),
-            size_hint = [None, None],
+            #size_hint = [None, None],
             # height=550,
-            # size_hint=[1, None],
+            size_hint=[1, None],
             # center=[0.5, 0.5]
             )
         self.ids.component_list.add_widget(self.preview_img)
@@ -108,8 +109,6 @@ class SVGNode(BaseNode):
 
 
     def update_preview(self, src, val):
-        for child in self.ids.component_list.children:
-            print(child, child.height)
         Logger.info(f"UI_SVGNode on value change {src},{val}")
         png_img =cairosvg.svg2png(url=self.value)
         texture = CoreImage(io.BytesIO(png_img), ext="png").texture
@@ -138,27 +137,36 @@ class SVGSink(BaseSink):
         self.icon = "drawing"
         self.title = kw.get('title', "SVG Data")
 
-class SVGPreviewNode(BaseNode):
+class SVGPreviewNode(SVGNode):
 
     def __init__(self, *args, **kw):
         self.title = kw.get("title", "SVG Image")
         self.actions = [["drawing", lambda x:x]]
         super().__init__(*args, **kw)
 
-
-class SVGPreviewControl(BaseControl):
-    description = StringProperty()
-    extension = StringProperty()
-    value = ObjectProperty()
-    label_content = StringProperty()
-
-
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
+
+    def on_sink_changed(self, source, value):
+        logging.info(f"{self} got an on_sink_changed from {source} with {value}")
+        self.value = value
+
+    def update_preview(self, src, val):
+        Logger.info(f"UI_SVGPreviewNode on value change {src},{val}")
+        
+
+        png_img =cairosvg.svg2png(url=self.value)
+        texture = CoreImage(io.BytesIO(png_img), ext="png").texture
+        self.preview_img.texture = texture
+        if self.preview_img.width<500:
+            self.preview_img.width = 500
+        self.preview_img.height = self.preview_img.width
+        self.height = self.ids.component_tools.height+sum([child.height for child in self.ids.component_list.children])
+        self.do_layout()
+
 
 Builder.load_string(SVG_NODE_KV)
 Factory.register('SVGNode', cls=SVGNode)
 Factory.register('SVGSource', cls=SVGSource)
 Factory.register('SVGSink', cls=SVGSink)
 Factory.register('SVGPreviewNode', cls=SVGPreviewNode)
-Factory.register('SVGPreviewControl', cls=SVGPreviewControl)

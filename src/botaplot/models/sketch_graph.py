@@ -136,11 +136,12 @@ class BaseSource(SourceSinkBase):
     def value(self):
         return self.parent is not None and self.parent.value or None
 
-    @property
-    def on_value_change(self, source, new_value):
+    def on_value_changed(self, source, new_value):
+        logging.info("Updating value")
         for sink in self.sinks:
-            if hasattr(sink, "on_value_change"):
-                sink.on_value_change(source, new_value)
+            logging.info(f"Updating sink: {sink}")
+            if hasattr(sink, "on_value_changed"):
+                sink.on_value_changed(source, new_value)
 
 
 @register_type
@@ -173,12 +174,12 @@ class BaseSink(SourceSinkBase):
             if self._source is not None:
                 self._source.sinks.append(self)
 
-    @property
-    def on_value_change(self, source, new_value):
+    def on_value_changed(self, source, new_value):
         """This gets called any time the source on the other side of the
         sink changes."""
-        if hasattr(self.parent, "on_sink_change"):
-            self.parent.on_sink_change(self, new_value)
+        logging.info(f"{self} got an on_value_changed from {source} with val {new_value}")
+        if hasattr(self.parent, "on_sink_changed"):
+            self.parent.on_sink_changed(self, new_value)
 
     def to_dict(self):
         base = super().to_dict()
@@ -261,6 +262,11 @@ class BaseNode(Serializable):
         print("%s on_value_changed via %s with new value %s" % (self, source, value))
         self.value = value
 
+    def on_sink_changed(self, source, value):
+        """Called whenever a sink changes, for any reason. SHould be hooked
+        so that we can update our internal model based on the incoming data."""
+        logging.info(f"{self} received an on_sink_changed from {source} with data {value}")
+
     @property
     def value(self):
         return self._value
@@ -273,7 +279,10 @@ class BaseNode(Serializable):
             callback(self, val)
         for source in self.sources:
             if hasattr(source, "on_value_changed"):
+                logging.info(f"Updating value on source {self}.{source}")
                 source.on_value_changed(self, val)
+
+
 
 @register_type
 class SketchGraph(Serializable):

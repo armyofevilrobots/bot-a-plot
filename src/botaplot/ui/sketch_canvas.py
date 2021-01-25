@@ -151,7 +151,11 @@ class SketchLayout(ScatterPlane):
         self.sketch_model = model
         self.center_on_content()
         # This ensures we redraw the spline with it's endpoints in the right spots
+        def _on_change_all_nodes(*args):
+            for node in model.nodes:
+                node.on_value_changed(self, node.value)
         Clock.schedule_once(self._spline_redraw)
+        Clock.schedule_once(_on_change_all_nodes)
 
     @staticmethod
     def get_ui_class_for_model(model):
@@ -175,12 +179,12 @@ class SketchLayout(ScatterPlane):
             )
             widget.ids.component_list.add_widget(child)
 
-            def on_value_change(obj, val):
+            def on_value_changed(obj, val):
                 Logger.info(f"On_value_change bind for {obj} with {val}")
                 control.value = val
-            child.bind(value=on_value_change)
+            child.bind(value=on_value_changed)
             if child.value:
-                on_value_change(child, child.value)
+                on_value_changed(child, child.value)
 
         for sink in node.sinks:
             sink_ui_cls = getattr(Factory, sink.__class__.__name__, None)
@@ -194,6 +198,7 @@ class SketchLayout(ScatterPlane):
             widget.ids.component_list.add_widget(child)
             self.hint_con[source.id] = node
             self.source_sink_lookup[source.id] = child
+
 
     def _build_widget_for_node(self, node, x_hint=0.0):
         widget_type = getattr(Factory, node.__class__.__name__, None)

@@ -26,6 +26,14 @@ class SVGSource(BaseSource):
 
     # We should override onvaluechanged here so that we can handle
     # the svg file changing, or NOT changing, and have a cache.
+    def on_value_changed(self, source, new_value):
+        if isinstance(source, SVGNode):
+            logging.info(f"Updating value from SVG Source {self}")
+            logging.info(f"Outgoing value is {self.value}")
+            for sink in self.sinks:
+                logging.info(f"Source {self} is Updating sink: {sink}")
+                if hasattr(sink, "on_value_changed"):
+                    sink.on_value_changed(source, self.value)
 
 
 @register_type
@@ -69,7 +77,7 @@ class SVGPreviewControl(BaseControl):
     def __init__(self, value="", description="", id=None):
         super().__init__(value, description, id)
 
-    def on_value_change(self, source, value):
+    def on_value_changed(self, source, value):
         logging.info("On value change on the preview image")
 
 
