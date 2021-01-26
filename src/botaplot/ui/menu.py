@@ -17,10 +17,16 @@ class MenuAndCallback(object):
         self.name = name
         self.icon = icon
 
+def new_sketch():
+    model = SketchGraph()
+    MDApp.get_running_app().root.ids.nav_drawer.set_state("close")
+    MDApp.get_running_app().set_model(model)
+
 def load_sketch():
     def success(self, filename):
         Logger.warn("OPENING BAP: %s" % filename)
         root = MDApp.get_running_app().root
+        new_sketch()
         root.ids.nav_drawer.set_state("close")
         model = SketchGraph.from_file(filename)
         MDApp.get_running_app().set_model(model)
@@ -37,7 +43,7 @@ def load_sketch():
 
 # Later on, these should really get built up from some kind of plugin system
 MENU_ITEMS = [
-    MenuAndCallback("New Project", "folder-plus"),
+    MenuAndCallback("New Project", "folder-plus", new_sketch),
     MenuAndCallback("Open Project", "folder-open", load_sketch),
     MenuAndCallback("Import SVG", "drawing", load_svg),
     MenuAndCallback("Settings", "database-settings"),

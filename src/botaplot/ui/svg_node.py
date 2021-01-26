@@ -19,24 +19,6 @@ import cairosvg
 
 SVG_NODE_KV = '''
 
-# <--SVGNode>:
-#     drag_rectangle: self.x, self.y, self.width, self.height
-#     drag_timeout: 10000000
-#     drag_distance: 0
-#     width: 600
-#     height: component_tools.height+sum([child.height for child in component_list.children])
-#     MDBoxLayout:
-#         id: component_box
-#         size_hint: [1, None]
-#         orientation: 'vertical'
-#         MDToolbar:
-#             id: component_tools
-#             title: root.title
-#             right_action_items: root.actions
-#             font_size: "12sp"
-#         MDList:
-#             id: component_list
-#             size_hint: [1, 1]
 
 <-SVGSource>:
     orientation: "horizontal"
@@ -60,36 +42,6 @@ SVG_NODE_KV = '''
         size_hint: [None,1]
 
 
-<-SVGSink>:
-    orientation: "horizontal"
-    size_hint: [1,1]
-
-    MDIconButton:
-        id: sink_connect
-        icon: "arrow-right-bold-circle-outline"
-        halign: "left"
-        #padding: ["8dp","8dp"]
-        size_hint: [None,1]
-    MDLabel:
-        text: root.title
-        halign: "left"
-        padding: ["12dp","12dp"]
-        size_hint: [1,1]
-    MDIcon:
-        icon: root.icon
-        halign: "right"
-        padding: ["12dp","12dp"]
-        size_hint: [None,1]
-
-<-SVGPreviewControl>:
-    orientation: "horizontal"
-    size_hint: [1, None]
-    adaptive_height: True
-    Widget:
-        size_hint: [1,None]
-        height: 800
-        padding: ["12dp", "12dp"]
-
 '''
 
 class SVGNode(BaseNode):
@@ -111,8 +63,11 @@ class SVGNode(BaseNode):
 
     def update_preview(self, src, val):
         Logger.info(f"UI_SVGNode on value change {src},{val}")
-        png_img =cairosvg.svg2png(url=self.value)
-        texture = CoreImage(io.BytesIO(png_img), ext="png").texture
+        if self.value is not None and os.path.isfile(self.value):
+            png_img =cairosvg.svg2png(url=self.value)
+            texture = CoreImage(io.BytesIO(png_img), ext="png").texture
+        else:
+            texture = None
         self.preview_img.texture = texture
         if self.preview_img.width<500:
             self.preview_img.width = 500
@@ -154,19 +109,22 @@ class SVGPreviewNode(SVGNode):
 
     def update_preview(self, src, val):
         Logger.info(f"UI_SVGPreviewNode on value change {src},{val}")
-        paths, attributes = zip(*val)
-        svgdir = tempfile.gettempdir()
-        Logger.info(f"SVG Dir is {svgdir}")
-        tmp_svg_fn = os.path.join(svgdir, f"{self.__class__.__name__}-{id(self)}.svg")
-        Logger.info(f"TMP SVG filename is {tmp_svg_fn}")
-        wsvg(paths=paths,
-             attributes=attributes,
-             filename=tmp_svg_fn)
-        png_img =cairosvg.svg2png(url=tmp_svg_fn)
-        texture = CoreImage(io.BytesIO(png_img), ext="png").texture
-        os.unlink(tmp_svg_fn)
+        if val is not None and val != (None, None):
+            paths, attributes = zip(*val)
+            svgdir = tempfile.gettempdir()
+            Logger.info(f"SVG Dir is {svgdir}")
+            tmp_svg_fn = os.path.join(svgdir, f"{self.__class__.__name__}-{id(self)}.svg")
+            Logger.info(f"TMP SVG filename is {tmp_svg_fn}")
+            wsvg(paths=paths,
+                 attributes=attributes,
+                 filename=tmp_svg_fn)
+            png_img =cairosvg.svg2png(url=tmp_svg_fn)
+            texture = CoreImage(io.BytesIO(png_img), ext="png").texture
+            os.unlink(tmp_svg_fn)
+        else:
+            texture = None
         self.preview_img.texture = texture
-        if self.preview_img.width<500:
+        if self.preview_img.width < 500:
             self.preview_img.width = 500
         self.preview_img.height = self.preview_img.width
         self.height = self.ids.component_tools.height+sum([child.height for child in self.ids.component_list.children])

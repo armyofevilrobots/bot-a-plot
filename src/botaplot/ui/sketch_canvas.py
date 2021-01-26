@@ -117,14 +117,14 @@ class SketchLayout(ScatterPlane):
         """Cleans out old entries, creates a new graph, redraws"""
         for key in self.edge_splines.keys():
             self.canvas.remove(self.edge_splines[key])
-        for nid, widget in self.nodes.items():
+        for nid in [key for key in self.nodes.keys()]:
+            node = self.nodes[nid]
             if nid not in [node.id for node in model.nodes]:
-                self.canvas.remove(self.nodes[nid])
-                del self.nodes[nid]
-        for nid, widget in self.nodes.items():
-            if nid not in [node.id for node in model.nodes]:
-                self.canvas.remove(self.nodes[nid])
-                del self.nodes[nid]
+                self.remove_widget(self.nodes[nid])
+                try:
+                    del self.nodes[nid]  # It's a weakref, so already deleted
+                except:
+                    Logger.info(f"Node {nid} already deleted")
         Logger.info("Done deleting all orphaned widgets")
 
         # If no meta on position, use this as xpos, with y=0
@@ -144,10 +144,20 @@ class SketchLayout(ScatterPlane):
             Logger.info(f"Creating sink connections for node {node.id}:{node} :: {node.sinks}")
             for sinkm in node.sinks:
                 if sinkm.source is not None:
+                    sinkm_id = sinkm.source.id  # Cached so we can delete in callback
                     sourcew = self.source_sink_lookup[sinkm.source.id]
                     sinkw = self.source_sink_lookup[sinkm.id]
-                    self.edge_splines[f"{sinkm.source.id}_{sinkm.id}"] = \
+                    self.edge_splines[f"{sinkm_id}_{sinkm.id}"] = \
                         self.create_edge_spline(sourcew, sinkw)
+                    def _on_connect(source, val):
+                        if val is None:
+                            self.canvas.remove(self.edge_splines[f"{sinkm_id}_{sinkm.id}"])
+                        else:
+                            new_sourcew = self.source_sink_lookup[val.id]
+                            self.edge_splines[f"{val.id}_{sinkm.id}"] = \
+                                self.create_edge_spline(new_sourcew, sinkw)
+
+                    sinkm.watch(on_connect=_on_connect)
         self.sketch_model = model
         self.center_on_content()
         # This ensures we redraw the spline with it's endpoints in the right spots
@@ -166,6 +176,8 @@ class SketchLayout(ScatterPlane):
             child_cls = None
         Logger.info("Creating a %s for %s" % (child_cls, model))
         return child_cls
+
+
 
     def _add_children_to_node(self, widget, node):
         """Add all the sources and sinks to a widget for a node"""
@@ -189,16 +201,18 @@ class SketchLayout(ScatterPlane):
         for sink in node.sinks:
             sink_ui_cls = getattr(Factory, sink.__class__.__name__, None)
             child = sink_ui_cls(**sink.controller_args())
+            child.model = sink
             widget.ids.component_list.add_widget(child)
             self.hint_con[sink.id] = node
             self.source_sink_lookup[sink.id] = child
+
         for source in node.sources:
             source_ui_cls = getattr(Factory, source.__class__.__name__, None)
             child = source_ui_cls(**source.controller_args())
+            child.model = source
             widget.ids.component_list.add_widget(child)
             self.hint_con[source.id] = node
             self.source_sink_lookup[source.id] = child
-
 
     def _build_widget_for_node(self, node, x_hint=0.0):
         widget_type = getattr(Factory, node.__class__.__name__, None)
@@ -207,6 +221,7 @@ class SketchLayout(ScatterPlane):
             size=node.meta.get('size', (640, 0)),
             title=node.meta.get('title', node.__class__.__name__)
         )
+
         def _update_widget_viewmodel(source, value):
             Logger.info(f"Updating viewmodel on {widget} with {value}")
             widget.value = value

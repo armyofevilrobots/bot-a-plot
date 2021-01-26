@@ -150,10 +150,20 @@ class BaseSink(SourceSinkBase):
     parent = None  # This is a Node
     source_type = BaseSource
     _source = None
+    callbacks = None
 
     def __init__(self, id=None, source=None):
         SourceSinkBase.__init__(self, id)
         self.source = source
+        self.callbacks = {"on_value": list(),
+                          "on_connect": list()}
+
+    def watch(self, **kw):
+        logging.info(f"Adding callback {kw} to Sink {self.__class__}::{self}")
+        for evname, callback in kw.items():
+            if evname not in self.callbacks:
+                raise RuntimeError(f"No such event {evname} in {self.__class__.__name__} callbacks")
+            self.callbacks[evname].append(callback)
 
     @property
     def value(self):
@@ -173,6 +183,9 @@ class BaseSink(SourceSinkBase):
             self._source = val
             if self._source is not None:
                 self._source.sinks.append(self)
+            # Do all the callbacks.
+            for callback in self.callbacks["on_connect"]:
+                callback(self, val)
 
     def on_value_changed(self, source, new_value):
         """This gets called any time the source on the other side of the
@@ -180,6 +193,8 @@ class BaseSink(SourceSinkBase):
         logging.info(f"{self} got an on_value_changed from {source} with val {new_value}")
         if hasattr(self.parent, "on_sink_changed"):
             self.parent.on_sink_changed(self, new_value)
+        for callback in self.callbacks["on_value"]:
+            callback(source, new_value)
 
     def to_dict(self):
         base = super().to_dict()
@@ -254,7 +269,7 @@ class BaseNode(Serializable):
     def on_value_changed(self, source, value):
         """This is called when ANY child changes for ANY reason. By inspecting
         the 'source' field, we can determine what is changing, and how to consume
-        it. For example, if a control changes, we'll get that for the source,
+        it. For example, if a control changes it, we'll get that for the source,
         and we can determine the action we take against our own value.
         ie: If an SVG file control changes in an SVG node, we can decide to
         change our internal SVG value, and update our sources.
