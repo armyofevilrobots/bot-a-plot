@@ -1,4 +1,6 @@
-# Bot-a-Plot
+# Bot-à-Plot
+
+![alt text](doc/img/botaplot_screenshot.png "Bot-à-Plot")
 
 TODO:
 * Integrate https://github.com/mathandy/svgpathtools to generate/process SVG files
