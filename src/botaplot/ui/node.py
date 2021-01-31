@@ -8,7 +8,8 @@ from kivy.clock import Clock
 from kivy.uix.widget import Widget
 from kivy.uix.scatter import ScatterPlane
 from kivy.uix.behaviors import DragBehavior
-from kivy.properties import ObjectProperty, NumericProperty, StringProperty
+from kivy.properties import (ObjectProperty, NumericProperty, StringProperty,
+                             BooleanProperty)
 from kivymd.uix.menu import MDDropdownMenu
 from kivymd.toast import toast
 
@@ -34,6 +35,27 @@ BASE_NODE_KV = """
             id: component_list
             adaptive_size: True
             size_hint: [1, 1]
+            
+<-BaseSource>:
+    orientation: "horizontal"
+    size_hint: [1,1]
+
+    MDIcon:
+        icon: root.icon
+        halign: "left"
+        padding: ["12dp","12dp"]
+        size_hint: [None,1]
+    MDLabel:
+        text: root.title
+        halign: "left"
+        padding: ["12dp","12dp"]
+        size_hint: [1,1]
+    MDIconButton:
+        id: source_connect
+        icon: "arrow-right-bold-circle-outline"
+        halign: "right"
+        size_hint: [None,1]
+        on_press: root.do_source_button_menu()
             
 <-BaseSink>:
     orientation: "horizontal"
@@ -115,11 +137,33 @@ class BaseSource(MDCard):
     icon = StringProperty("help")
     title = StringProperty("BaseSource")
     model = ObjectProperty(None)
+    is_connecting = BooleanProperty(False)
 
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
         self.icon = kw.get("icon", "help")
         self.title = kw.get("title", "BaseSource")
+        menu_items = [
+            {"icon": "shape-circle-plus",
+             "text": "Connect"}, ]
+        self.menu_connect = MDDropdownMenu(
+            caller=self.ids.source_connect,
+            items=menu_items,
+            width_mult=4,
+        )
+        self.menu_connect.bind(on_release=self.handle_source_menu)
+
+    def handle_source_menu(self, menu, item):
+        Logger.info(f"Menu on source was clicked with {menu},{item}")
+        if menu == self.menu_connect and item.text == 'Connect':
+            Logger.info("Time to change our parent state to 'connecting'")
+            self.is_connecting = True
+        self.menu_connect.dismiss()
+
+    def do_source_button_menu(self, *args, **kw):
+        Logger.info("Sourc3e button menu opened")
+        self.menu_connect.open()
+
 
 
 class BaseSink(MDCard):
@@ -153,7 +197,8 @@ class BaseSink(MDCard):
     def do_sink_button_menu(self, *args, **kw):
         if self.model.source is None:
             Logger.info("Disabling menu because we're already disconnected")
-            toast("Nothing to disconnect!")
+            # toast("Nothing to disconnect!")
+            # We probably are getting a connection request.
         else:
             self.menu_disconnect.open()
 

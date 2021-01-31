@@ -154,9 +154,9 @@ class BaseSink(SourceSinkBase):
 
     def __init__(self, id=None, source=None):
         SourceSinkBase.__init__(self, id)
-        self.source = source
         self.callbacks = {"on_value": list(),
                           "on_connect": list()}
+        self.source = source
 
     def watch(self, **kw):
         logging.info(f"Adding callback {kw} to Sink {self.__class__}::{self}")
@@ -306,11 +306,13 @@ class SketchGraph(Serializable):
     nodes = list()  # of nodes, eh
     basedir = None
     by_uuid = dict()
+    filename = None
 
-    def __init__(self, nodes=None, meta=None, id=None):
+    def __init__(self, nodes=None, meta=None, id=None, filename=None):
         self.id = id or str(uuid.uuid4())
         self.nodes = nodes or list()
         self.meta = meta or dict()
+        self.filename = filename
         # We backlink all the things
         _source_dict = {}
         for node in self.nodes:
@@ -329,7 +331,22 @@ class SketchGraph(Serializable):
         path = os.path.normpath(path)
         data = hjson.load(open(path))
         new_graph = from_dict(data=data)
+        new_graph.filename = path
         return new_graph
+
+    def to_file(self, path=None):
+        if path is None and self.filename is not None:
+            path = self.filename
+        path = os.path.normpath(path)
+        if path is not None:
+            if (not os.path.isfile(path)
+                    and os.path.isdir(os.path.dirname(path)))\
+                    or os.path.isfile(path):
+                dumpable = self.to_dict()
+                hj = hjson.dump(dumpable, open(path, 'w'))
+            else:
+                raise OSError(f"Invalid save path {path}")
+
 
     def to_dict(self):
         base = super(SketchGraph, self).to_dict()

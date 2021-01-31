@@ -17,32 +17,32 @@ from svgpathtools.paths2svg import wsvg
 
 import cairosvg
 
-SVG_NODE_KV = '''
-
-
-<-SVGSource>:
-    orientation: "horizontal"
-    size_hint: [1,1]
-
-    MDIcon:
-        icon: root.icon
-        halign: "left"
-        padding: ["12dp","12dp"]
-        size_hint: [None,1]
-    MDLabel:
-        text: root.title
-        halign: "left"
-        padding: ["12dp","12dp"]
-        size_hint: [1,1]
-    MDIconButton:
-        id: source_connect
-        icon: "arrow-right-bold-circle-outline"
-        halign: "right"
-        #padding: ["8dp","8dp"]
-        size_hint: [None,1]
-
-
-'''
+# SVG_NODE_KV = '''
+#
+#
+# <-SVGSource>:
+#     orientation: "horizontal"
+#     size_hint: [1,1]
+#
+#     MDIcon:
+#         icon: root.icon
+#         halign: "left"
+#         padding: ["12dp","12dp"]
+#         size_hint: [None,1]
+#     MDLabel:
+#         text: root.title
+#         halign: "left"
+#         padding: ["12dp","12dp"]
+#         size_hint: [1,1]
+#     MDIconButton:
+#         id: source_connect
+#         icon: "arrow-right-bold-circle-outline"
+#         halign: "right"
+#         #padding: ["8dp","8dp"]
+#         size_hint: [None,1]
+#
+#
+# '''
 
 class SVGNode(BaseNode):
 
@@ -131,7 +131,7 @@ class SVGPreviewNode(SVGNode):
         self.do_layout()
 
 
-Builder.load_string(SVG_NODE_KV)
+# Builder.load_string(SVG_NODE_KV)
 Factory.register('SVGNode', cls=SVGNode)
 Factory.register('SVGSource', cls=SVGSource)
 Factory.register('SVGSink', cls=SVGSink)

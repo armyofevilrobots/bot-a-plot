@@ -17,7 +17,7 @@ from .theming import DesktopThemeClass
 from .sketch_canvas import SketchLayout
 from .node import DragCard
 from .menu import MENU_ITEMS
-Config.set('input', 'mouse', 'mouse,multitouch_on_demand')
+Config.set('input', 'mouse', 'mouse,multitouch_on_demand,pos')
 
 
 class Tab(FloatLayout, MDTabsBase):
@@ -35,9 +35,12 @@ MDTabsCarousel.on_touch_move = on_touch_move
 class BotAPlotApp(MDApp):
     model = ObjectProperty()
 
+
     def __init__(self, *args, **kw):
         super(BotAPlotApp, self).__init__(*args, **kw)
         self.theme_cls = DesktopThemeClass()
+        # Done without set_model because the layout doesn't exist yet.
+        self.model = SketchGraph()
 
     def set_model(self, model):
         Logger.info("Loading model: %s", model)
@@ -46,7 +49,13 @@ class BotAPlotApp(MDApp):
 
     def on_model(self, instance, model):
         print("Model change", instance, model)
-        self.root.ids.sketch_layout.update(model)
+        if self.root is not None:
+            self.root.ids.sketch_layout.update(model)
+
+    def save_model(self, *args):
+        self.model.to_file()
+
+
 
     def build_config(self, config):
         config.setdefaults(

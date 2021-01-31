@@ -1,6 +1,7 @@
 from kivy.logger import Logger
 from kivymd.app import MDApp
-from .filechooser import FileOpener
+from kivymd.toast import toast
+from .filechooser import FileOpener, FileSaver
 from .util import load_svg
 from ..models.sketch_graph import SketchGraph
 
@@ -33,18 +34,40 @@ def load_sketch():
 
     def fail(self):
         Logger.warn("Not opening due to cancel/fail")
+        toast("No file, or invalid file selected.")
         root = MDApp.get_running_app().root
         root.ids.nav_drawer.set_state("close")
 
-    opener = FileOpener(success, extensions=['.bap', '.botaplot'])
+    opener = FileOpener(success, fail, extensions=['.bap', '.botaplot'])
     opener.show()
-    
+
+def save_sketch():
+    app = MDApp.get_running_app()
+    def success(self, filename):
+        Logger.warn("Saving BAP: %s" % filename)
+        app.root.ids.nav_drawer.set_state("close")
+        if app.model is not None:
+            app.model.filename = filename
+            app.save_model()
+        else:
+            Logger.warn("Not actually saving empty file yet.")
+
+    if app.model and app.model.filename:
+        app.save_model()
+    else:
+        saver = FileSaver(success, extensions=['.bap', '.botaplot'])
+        saver.show()
+        # raise RuntimeError("Cannot save a file with no name")
+        # Figure out a path.
+
+
 
 
 # Later on, these should really get built up from some kind of plugin system
 MENU_ITEMS = [
     MenuAndCallback("New Project", "folder-plus", new_sketch),
     MenuAndCallback("Open Project", "folder-open", load_sketch),
+    MenuAndCallback("Save Project", "content-save", save_sketch),
     MenuAndCallback("Import SVG", "drawing", load_svg),
     MenuAndCallback("Settings", "database-settings"),
     MenuAndCallback("Plot", "printer"),
