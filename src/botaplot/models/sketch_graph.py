@@ -184,7 +184,9 @@ class BaseSink(SourceSinkBase):
             if self._source is not None:
                 self._source.sinks.append(self)
             # Do all the callbacks.
+            logging.info(f"Doing callbacks for {self}")
             for callback in self.callbacks["on_connect"]:
+                logging.info(f"Running on_connect for {callback}")
                 callback(self, val)
 
     def on_value_changed(self, source, new_value):
@@ -316,6 +318,7 @@ class SketchGraph(Serializable):
         # We backlink all the things
         _source_dict = {}
         for node in self.nodes:
+            node.parent = self
             for control in node.controls:
                 control.parent = node
             for source in node.sources:
@@ -346,6 +349,20 @@ class SketchGraph(Serializable):
                 hj = hjson.dump(dumpable, open(path, 'w'))
             else:
                 raise OSError(f"Invalid save path {path}")
+
+
+    def remove_node(self, node):
+        """Clean removal, breaks connections."""
+        logging.info(f"Removeing node: {node}:{node.__class__}")
+        for sink in node.sinks:
+            # Break all my sinks
+            sink.source = None
+        for source in node.sources:
+            # Also break all connections to me from other sinks
+            for sink in source.sinks.copy():
+                sink.source = None
+        self.nodes.remove(node)
+
 
 
     def to_dict(self):

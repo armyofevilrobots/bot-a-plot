@@ -1,5 +1,6 @@
 from uuid import uuid4
 from kivy.logger import Logger
+from kivymd.app import MDApp
 from kivymd.uix.card import MDCard
 from kivymd.uix.button import MDIconButton
 from kivy.factory import Factory
@@ -83,7 +84,6 @@ BASE_NODE_KV = """
 class DragCard(DragBehavior, MDCard):
     title = StringProperty()
     id = StringProperty()
-    actions = ObjectProperty([["language-python", lambda x:x]])
 
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
@@ -127,9 +127,20 @@ class DragCard(DragBehavior, MDCard):
 
 
 class BaseNode(DragCard):
-    icon = StringProperty("help")
+    icon = "help"
     title = StringProperty("BaseNode")
     value = ObjectProperty()  # Used by events all over the place...
+    actions = ObjectProperty([["language-python", lambda x:x]])
+
+    def _remove_self(self, *args, **kw):
+        self.model.parent.remove_node(self.model)
+        app = MDApp.get_running_app()
+        app.refresh()
+
+
+    def __init__(self, *args, **kw):
+        super().__init__(*args, **kw)
+        self.actions = [[self.icon, lambda x:x], ["delete", self._remove_self]]
 
 
 

@@ -250,6 +250,8 @@ class SketchLayout(ScatterPlane):
                         and self.connecting_arc \
                         and child.model and child.model.source == None:
                     child.model.source = self.connecting_source_widget.model
+                    self.create_viz_sink_conn(child.model)
+
                     Logger.info("Should be connected")
                     self.connecting_source_widget.is_connecting = False  # We're done
                     self.connecting_source_widget = None
@@ -287,6 +289,7 @@ class SketchLayout(ScatterPlane):
             size=node.meta.get('size', (640, 0)),
             title=node.meta.get('title', node.__class__.__name__)
         )
+        widget.model = node
 
         def _update_widget_viewmodel(source, value):
             Logger.info(f"Updating viewmodel on {widget} with {value}")

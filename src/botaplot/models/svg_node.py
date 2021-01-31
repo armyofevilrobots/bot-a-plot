@@ -46,7 +46,7 @@ class SVGNode(BaseNode):
 
     def __init__(self, sources=None, sinks=None, controls=None, meta=None, id=None):
         super().__init__(sources, sinks, controls, meta, id)
-        self.value = ""
+
 
     @classmethod
     def create(cls, id=None):

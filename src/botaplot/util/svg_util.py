@@ -1,5 +1,3 @@
-from svgpathtools import Path, Line, QuadraticBezier, CubicBezier, Arc
-from svgpathtools import svg2paths, wsvg
 import math
 import cmath
 

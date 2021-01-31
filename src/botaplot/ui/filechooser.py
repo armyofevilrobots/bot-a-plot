@@ -12,7 +12,7 @@ import os.path
 
 kv_stub = '''
 <-MDFileSaveManager>
-    md_bg_color: root.theme_cls.bg_normal
+    # md_bg_color: root.theme_cls.bg_normal
     BoxLayout:
         orientation: "vertical"
         spacing: dp(5)
@@ -132,7 +132,7 @@ class FileSaver(FileOpener):
         Logger.info(f"{self.path} is valid? {self.valid}")
         self.filemanager.close()
         if self.valid and self.success is not None:
-            self.success(self, path)
+            self.success(self, self.path)
         elif self.fail is not None:
             self.fail(self)
 

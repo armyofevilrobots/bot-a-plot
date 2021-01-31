@@ -78,17 +78,23 @@ Screen:
                                 text: "Sketch" 
                                 BoxLayout:
                                     orientation: 'vertical'
-                                    # adaptive_height: True
+                                    adaptive_height: True
                                     SketchLayout:
                                         id: sketch_layout
 
-                                    MDToolbar:
-                                        title: "Sketch"
-                                        id: sketch_toolbar
-                                        icon: "developer-board"
-                                        # type: "bottom"
-                                        right_action_items: [["file-code-outline", lambda x: x], ["drawing-box", lambda x:print(x)]]
-                                        left_action_items: [["file-code-outline", lambda x: print("SAVE SOMETHING")]]
+                                    MDBottomAppBar:
+                                        MDToolbar:
+                                            id: sketch_toolbar
+                                            title: "Sketch"
+                                            icon: "puzzle-plus"
+                                            #type: "bottom"
+                                            # mode: "free-end"
+                                            on_action_button: app.on_action_pressed
+#                                            on_press: lambda x: print("PRESSED")
+                                            # type: "bottom"
+                                            # right_action_items: [["file-code-outline", lambda x: x], ["drawing-box", lambda x:print(x)]]
+                                            # left_action_items: [["file-code-outline", lambda x: print("SAVE SOMETHING")]]
+
                             Tab:
                             # TabbedPanelItem:
                                 text: "Canvas"

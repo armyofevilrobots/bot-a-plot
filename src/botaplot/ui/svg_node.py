@@ -46,17 +46,15 @@ import cairosvg
 
 class SVGNode(BaseNode):
 
+    icon = "drawing"
+
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
         self.title = kw.get("title", "SVG Image")
-        self.actions = [["drawing", lambda x:x]]
         print(self.ids.component_list)
         self.preview_img = Image(
             source=resource_path("images", "no_such_image.png"),
-            #size_hint = [None, None],
-            # height=550,
             size_hint=[1, None],
-            # center=[0.5, 0.5]
             )
         self.ids.component_list.add_widget(self.preview_img)
         self.bind(value=self.update_preview)
@@ -94,6 +92,8 @@ class SVGSink(BaseSink):
         self.title = kw.get('title', "SVG Data")
 
 class SVGPreviewNode(SVGNode):
+
+    icon="drawing"
 
     def __init__(self, *args, **kw):
         self.title = kw.get("title", "SVG Image")

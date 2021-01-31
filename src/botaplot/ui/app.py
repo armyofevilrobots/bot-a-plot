@@ -16,7 +16,7 @@ from .drawer_menu import *
 from .theming import DesktopThemeClass
 from .sketch_canvas import SketchLayout
 from .node import DragCard
-from .menu import MENU_ITEMS
+from .menu import MENU_DRAWER_ITEMS, create_widget_menu
 Config.set('input', 'mouse', 'mouse,multitouch_on_demand,pos')
 
 
@@ -39,8 +39,6 @@ class BotAPlotApp(MDApp):
     def __init__(self, *args, **kw):
         super(BotAPlotApp, self).__init__(*args, **kw)
         self.theme_cls = DesktopThemeClass()
-        # Done without set_model because the layout doesn't exist yet.
-        self.model = SketchGraph()
 
     def set_model(self, model):
         Logger.info("Loading model: %s", model)
@@ -100,7 +98,8 @@ class BotAPlotApp(MDApp):
 
     def on_start(self):
         Logger.info("On start")
-        for item in MENU_ITEMS:
+        self.root.ids.sketch_toolbar.action_button.bind(on_release=self.on_action_pressed)
+        for item in MENU_DRAWER_ITEMS:
             widget = ItemDrawer(icon=item.icon, text=item.name)
             if callable(item.action):
                 widget.on_release = item.action
@@ -110,17 +109,17 @@ class BotAPlotApp(MDApp):
             )
         Logger.info("Done creating menu items.")
 
-        # print(self.root.ids.sketch_layout, self.root.ids.sketch_layout.children)
-        # for child in self.root.ids.sketch_layout.children[::-1]:
-        #     self.root.ids.sketch_layout.remove_widget(
-        #         child)
+        Logger.info("Creating widget library menu")
+        self.widget_menu = create_widget_menu(caller=self.root.ids.sketch_toolbar.action_button)
+        self.widget_menu.bind(on_release=self.add_model_node)
+        Logger.info("Done widget menu items.")
+
         if len(sys.argv)>1 and os.path.isfile(sys.argv[1]):
             model = SketchGraph.from_file(sys.argv[1])
             self.set_model(model)
-
-
-
-
+        else:
+            # Done without set_model because the layout doesn't exist yet.
+            self.model = SketchGraph()
 
     def on_tab_switch(
             self, instance_tabs, instance_tab, instance_tab_label, tab_text):
@@ -136,6 +135,23 @@ class BotAPlotApp(MDApp):
                     instance_tab_label.__dict__,
                     tab_text)
 
+    def on_action_pressed(self, *args, **kw):
+        Logger.info("Action button pressed")
+        self.widget_menu.open()
+
+    def add_model_node(self, i_menu, i_menu_item):
+        Logger.info(f"Got a click on: {i_menu} for {i_menu_item}")
+        self.widget_menu.dismiss()
+        widget = lookup_types[i_menu_item.text].create()
+        widget.parent = self.model
+        self.model.nodes.append(widget)
+
+        print(self.model.nodes)
+        self.refresh()
+
+    def refresh(self):
+        if self.root is not None:
+            self.root.ids.sketch_layout.update(self.model)
 
 
 if __name__ == "__main__":
