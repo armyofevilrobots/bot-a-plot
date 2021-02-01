@@ -103,7 +103,7 @@ class Plottable(object):
                              (ymargin + scale*(p[1]-ymin)))
                             for p in chunk.points]
 
-    def optimize_lines(self, chunks=None, limit=100):
+    def optimize_lines(self, chunks=None, limit=3000):
         """
         Find the closest line endpoint at the end of a given drawn line,
         and add _that_ to the output list, correctly ordered. Ensures we
@@ -126,8 +126,8 @@ class Plottable(object):
         out_chunks.append(line)
         next_chunk = NextLine(None, False, MAX_LENGTH, False)  # Which index, how far away
         while len(orig_chunks) > 0:
-            sys.stderr.write("%d chunks left.\n" % len(orig_chunks))
-            sys.stderr.flush()
+            #sys.stderr.write("%d chunks left.\n" % len(orig_chunks))
+            #sys.stderr.flush()
             span = min(limit, len(orig_chunks))
             for i in range(span):
                 print("I IS %d/%d" % (i, span))

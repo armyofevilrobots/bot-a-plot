@@ -165,6 +165,14 @@ class BaseSink(SourceSinkBase):
                 raise RuntimeError(f"No such event {evname} in {self.__class__.__name__} callbacks")
             self.callbacks[evname].append(callback)
 
+    def unwatch(self, **kw):
+        logging.info(f"Removing callback {kw} from Sink {self.__class__}::{self}")
+        for evname, callback in kw.items():
+            if evname not in self.callbacks:
+                raise RuntimeError(f"No such event {evname} in {self.__class__.__name__} callbacks")
+            self.callbacks[evname].remove(callback)
+
+
     @property
     def value(self):
         return self.source is not None and self.source.value or None

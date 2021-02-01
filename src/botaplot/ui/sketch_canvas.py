@@ -45,6 +45,7 @@ class SketchLayout(ScatterPlane):
         self.connecting_arc = None
         self.connecting_spline = list()
         self.connecting_source_widget = None
+        self.sink_watchers = WeakValueDictionary()
         # Window.bind(on_motion=self.on_motion)
         Window.bind(mouse_pos=self.on_mouse_pos)
 
@@ -76,9 +77,11 @@ class SketchLayout(ScatterPlane):
     def _spline_redraw(self, *args):
         """Actually redraw the spline on an update."""
         for key, spline in self.edge_splines.items():
-            source_id, sink_id = key.split("_")
-            source = self.source_sink_lookup[source_id]
+            # source_id, sink_id = key.split("_")
+            sink_id = key
             sink = self.source_sink_lookup[sink_id]
+            source_id = sink.model.source.id
+            source = self.source_sink_lookup[source_id]
             spline.bezier = self.calc_bezier_coords(source, sink)
 
     def spline_redraw(self, *args):
@@ -133,11 +136,11 @@ class SketchLayout(ScatterPlane):
                 sink_pos[0] - 200, sink_pos[1],
                 sink_pos[0], sink_pos[1]]
 
-    def create_edge_spline(self, source, sink=None):
+    def create_edge_spline(self, source, sink=None, color=(0.6, 0.0, 0.0)):
         # python = MDApp.get_running_app().root.ids.python_source_a
         # postproc = MDApp.get_running_app().root.ids.post_processor_b
         with self.canvas:
-            Color(0.6, 0.0, 0.0)
+            Color(*color)
             bezier = Line(
                 bezier=self.calc_bezier_coords(source, sink),
                 segments=4,
@@ -174,33 +177,26 @@ class SketchLayout(ScatterPlane):
         for node in model.nodes:
             Logger.info(f"Creating sink connections for node {node.id}:{node} :: {node.sinks}")
             for sinkm in node.sinks:
+                self.watch_sink_connections(sinkm)
                 if sinkm.source is not None:
                     self.create_viz_sink_conn(sinkm)
         self.sketch_model = model
         self.center_on_content()
+
         # This ensures we redraw the spline with it's endpoints in the right spots
         def _on_change_all_nodes(*args):
             for node in model.nodes:
                 node.on_value_changed(self, node.value)
+
         Clock.schedule_once(self._spline_redraw)
         Clock.schedule_once(_on_change_all_nodes)
 
     def create_viz_sink_conn(self, sinkm):
-        sinkm_id = sinkm.source.id  # Cached so we can delete in callback
+        # sourcem_id = sinkm.source.id  # Cached so we can delete in callback
         sourcew = self.source_sink_lookup[sinkm.source.id]
         sinkw = self.source_sink_lookup[sinkm.id]
-        self.edge_splines[f"{sinkm_id}_{sinkm.id}"] = \
+        self.edge_splines[sinkm.id] = \
             self.create_edge_spline(sourcew, sinkw)
-
-        def _on_connect(source, val):
-            if val is None:
-                self.canvas.remove(self.edge_splines[f"{sinkm_id}_{sinkm.id}"])
-            else:
-                new_sourcew = self.source_sink_lookup[val.id]
-                self.edge_splines[f"{val.id}_{sinkm.id}"] = \
-                    self.create_edge_spline(new_sourcew, sinkw)
-
-        sinkm.watch(on_connect=_on_connect)
 
     @staticmethod
     def get_ui_class_for_model(model):
@@ -211,6 +207,28 @@ class SketchLayout(ScatterPlane):
             child_cls = None
         Logger.info("Creating a %s for %s" % (child_cls, model))
         return child_cls
+
+    def watch_sink_connections(self, sink):
+        if sink.source is not None:
+            sourcew = self.source_sink_lookup[sink.source.id]
+        else:
+            sourcew = None
+        sinkw = self.source_sink_lookup[sink.id]
+
+        def _on_connect(source, sourcem):
+            """Called whenever a connection happens."""
+            old_watcher = self.sink_watchers.get(sink.id)
+            if old_watcher is not None:
+                Logger.info(f"Unwatching sink {sink}")
+                sink.unwatch(on_connect=old_watcher)
+            if sink.id in self.edge_splines.keys():
+                self.canvas.remove(self.edge_splines[sink.id])
+            if sourcem is not None:
+                new_sourcew = self.source_sink_lookup[sourcem.id]
+                self.edge_splines[sink.id] = \
+                    self.create_edge_spline(new_sourcew, sinkw)
+        self.sink_watchers[sink.id] = _on_connect
+        sink.watch(on_connect=_on_connect)
 
 
 
@@ -242,7 +260,8 @@ class SketchLayout(ScatterPlane):
             self.source_sink_lookup[sink.id] = child
 
             def _connect_accept(*args, **kw):
-                if child.model.source != None:
+                Logger.info(f"Got a connect with {args} {kw}")
+                if child.model.source != None and self.connecting_source_widget:
                     toast("Only one incoming connection per sink is allowed.")
 
                 elif child is not None \
@@ -250,18 +269,19 @@ class SketchLayout(ScatterPlane):
                         and self.connecting_arc \
                         and child.model and child.model.source == None:
                     child.model.source = self.connecting_source_widget.model
-                    self.create_viz_sink_conn(child.model)
+                    self.canvas.remove(self.connecting_arc)
+                    # self.create_viz_sink_conn(child.model)
 
                     Logger.info("Should be connected")
                     self.connecting_source_widget.is_connecting = False  # We're done
                     self.connecting_source_widget = None
-                    self.canvas.remove(self.connecting_arc)
                     self.connecting_arc = None
                     self.connecting_spline = list()
                 else:
                     Logger.info("Connection failed for s:{self.connecting_source_widget}")
 
             child.bind(on_press=_connect_accept)
+            self.watch_sink_connections(sink)
 
         for source in node.sources:
             source_ui_cls = getattr(Factory, source.__class__.__name__, None)
@@ -275,7 +295,7 @@ class SketchLayout(ScatterPlane):
                 if value:
                     Logger.info(f"We are connecting something: s:{source}c:{child}, {value}")
                     self.connecting_spline = self.calc_bezier_coords(child, None)
-                    self.connecting_arc = self.create_edge_spline(child, None)
+                    self.connecting_arc = self.create_edge_spline(child, None, color=(0,0,1))
                     self.connecting_source_widget = child
 
 
