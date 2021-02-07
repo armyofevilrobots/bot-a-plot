@@ -4,7 +4,7 @@ from .base import BasePost
 
 class GCodePost(BasePost):
 
-    bounds = [(0,0), (230,235)]
+    bounds = [(0, 0), (235, 254)]
 
     preamble = [
         "G28 X Y",

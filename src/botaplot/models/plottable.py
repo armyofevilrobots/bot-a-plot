@@ -9,28 +9,81 @@ on the post-processor), and a "tool/pen id".
 """
 
 import numpy as np
-from math import sqrt
+from math import sqrt, floor
+from dataclasses import dataclass
 from collections import namedtuple
-from weakref import WeakValueDictionary
+from weakref import WeakValueDictionary, WeakSet
 from botaplot.util.util import (valid_point, distance, NextLine, MAX_LENGTH,
                                 clamp_coords)
 import sys
 
 
-class XYHash(object):
-    gridsize = 10.0  # 1cm squares
 
-    def __init__(self, chunks):
-        xyhash = dict()
-        for chunk in chunks:
-            start = chunk[0]
-            end = chunk[-1]
-            for point in start,end:
-                hash = "%dX%d" % (point[0], end[0])
-                if xyhash.get(hash) is None:
-                    xyhash[hash] = WeakValueDictionary((0, chunk))
-                else:
-                    xyhash[hash][len]
+class XYHash(object):
+    """Geometric localized 2d coordinate cache"""
+    gridsize = 10.0  # 1cm squares
+    _hash = None
+
+
+    def __init__(self, lines):
+        self._hash = dict()
+        for pline in lines:
+            self.add(pline)
+
+    def add(self, pline):
+        start = pline[0]
+        end = pline[-1]
+        for point in start, end:
+            hash = "%dX%d" % (floor(pline[0] / 10), floor(point[1] / 10))
+            if pline in self._hash.get(hash, list()):
+                continue
+            if self._hash.get(hash) is None:
+                self._hash[hash] = WeakValueDictionary((0, pline))
+            else:
+                self._hash[hash][len(self._hash[hash])].append(pline)
+
+    def remove(self, pline):
+        start = pline[0]
+        end = pline[-1]
+        if start == end:
+            end = None
+        for point in start, end:
+            while point in self._hash.get(hash):
+                self._hash.get(hash).remove(pline)
+
+    def closest(self, x, y, radius=3, remove=True):
+        """
+        Returns the closest line, with 1 or -1 for it's
+        direction (is it reversed)?
+        Radius sets the maximum distance from the center square to search.
+        If remove is set, cleans it out of the cache (because you just drew
+        it... duh...)
+
+        Algo:
+        assume search center = 55,52, radius is 3
+        check each endpoint in box[5,5]
+        if match: return match
+        for d in 1..radius:
+            let start = 5 - d
+            let end = 5 + d
+            i in 0..d-1:
+                check each endpoint in box[start+i, start]
+                if match: return match
+                check each endpoint in box[end, start+i]
+                if match: return match
+                check each endpoint in box[end-i, end]
+                if match: return match
+                check each endpoint in box[end, end-i]
+                if match: return match
+
+
+
+
+        """
+
+
+
+
 
 
 class Plottable(object):
@@ -38,9 +91,13 @@ class Plottable(object):
     class PlotChunk(object):
         """A base plottable"""
 
+        def transform(self, x, y, scalex, scaley):
+            raise NotImplementedError()
+
+
     class Line(PlotChunk):
         """Line segment"""
-        def __init__(self, points: np.ndarray, weight: float=1.0, pen=1):
+        def __init__(self, points: list, weight: float=1.0, pen=1):
             self.points = points
             self.weight = weight
             self.pen = pen
@@ -59,6 +116,18 @@ class Plottable(object):
             if len(self.points):
                 return "<PlotChunk:Line %s .. %s>" % (self.points[0], self.points[-1])
             return "<PlotChunk:Line empty>"
+
+        def transform(self, x, y, scalex, scaley):
+            self.points = [(x+p[0]*scalex, y+p[1]*scaley) for p in self.points]
+
+        @property
+        def bounds(self):
+            xmin = min([p[0] for p in self.points])
+            xmax = max([p[0] for p in self.points])
+            ymin = min([p[1] for p in self.points])
+            ymax = max([p[1] for p in self.points])
+            return xmin, ymin, xmax, ymax
+
 
     def __init__(self, chunks=None):
         if chunks is None:
@@ -103,7 +172,43 @@ class Plottable(object):
                              (ymargin + scale*(p[1]-ymin)))
                             for p in chunk.points]
 
-    def optimize_lines(self, chunks=None, limit=3000):
+
+    @property
+    def bounds(self):
+        bounds = [chunk.bounds for chunk in self.chunks]
+        xmin = min(bound[0] for bound in bounds)
+        ymin = min(bound[1] for bound in bounds)
+        xmax = max(bound[2] for bound in bounds)
+        ymax = max(bound[3] for bound in bounds)
+        return xmin,ymin,xmax,ymax
+
+
+    @staticmethod
+    def convert_svg_units_to_mm(value):
+        """Parse in/mm to mm units normalized"""
+        if isinstance(value, float):
+            return value  # Assume MM
+        if value.endswith("mm"):
+            return 1.0*float(value[:-2])
+        elif value.endswith("in"):
+            return 25.4*float(value[:-2])
+
+    def calculate_dpi_via_svg(self, svg):
+        """Figure out what our point size is relative to MM"""
+        if svg.values.get('width') is not None:
+            sys.stderr.write("Calculating DPI via Width/Viewport")
+            return svg.viewbox.width / self.convert_svg_units_to_mm(svg.values.get('width'))
+        else:
+            sys.stderr.write("Calculating DPI via Width/Viewport")
+            return svg.viewbox.width/(25.4*72.0)
+
+    def transform_self(self, x=0.0, y=0.0, scalex=1.0, scaley=1.0):
+        """Transform all internal coords by scale, moved by x,y"""
+        for chunk in self.chunks:
+            chunk.transform(x, y, scalex, scaley)
+
+
+    def optimize_lines(self, chunks=None, limit=100):
         """
         Find the closest line endpoint at the end of a given drawn line,
         and add _that_ to the output list, correctly ordered. Ensures we
@@ -126,11 +231,11 @@ class Plottable(object):
         out_chunks.append(line)
         next_chunk = NextLine(None, False, MAX_LENGTH, False)  # Which index, how far away
         while len(orig_chunks) > 0:
-            #sys.stderr.write("%d chunks left.\n" % len(orig_chunks))
-            #sys.stderr.flush()
+            if len(orig_chunks) % 100 == 0:
+                sys.stderr.write("%d chunks left.\n" % len(orig_chunks))
+                sys.stderr.flush()
             span = min(limit, len(orig_chunks))
             for i in range(span):
-                print("I IS %d/%d" % (i, span))
                 d_e2e = distance(line.points[-1], orig_chunks[i].points[-1])
                 d_e2s = distance(line.points[-1], orig_chunks[i].points[0])
                 if next_chunk.distance > d_e2e:

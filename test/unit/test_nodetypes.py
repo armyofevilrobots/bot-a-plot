@@ -24,9 +24,9 @@ class TestSerialization(unittest.TestCase):
         hj = hjson.dumps(basenode.to_dict())
         #print(f"HJ IS {hj}")
         data = hjson.loads(hjson.dumps(basenode.to_dict()))
-        self.assertEquals(data['_type'], basenode.hname)
+        self.assertEqual(data['_type'], basenode.hname)
         newnode = from_dict(data=data)
-        self.assertEquals(type(newnode), type(basenode))
+        self.assertEqual(type(newnode), type(basenode))
 
     def test_serialize_graph(self):
         # Create 3 basenodes

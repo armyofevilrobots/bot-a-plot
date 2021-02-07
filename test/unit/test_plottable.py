@@ -2,7 +2,19 @@
 
 import unittest
 import math
-from botaplot.models.plottable import Plottable
+from botaplot.models.plottable import Plottable, XYHash
+from weakref import WeakSet
+from scipy.sparse import dok_matrix
+
+class TestXYHash(unittest.TestCase):
+
+    def test_base_xyhash(self):
+        tline = Plottable.Line([
+            (20, 20), (20, 40),
+            (35, 50), (50, 40),
+            (50, 20), (20, 20)]
+        ),
+
 
 class TestPlottable(unittest.TestCase):
 
@@ -34,7 +46,6 @@ class TestPlottable(unittest.TestCase):
     def test_pop_plottable(self):
         tmp = self.plottable.pop()
         self.assertEqual(len(self.plottable), 1)
-
 
     def test_optimize(self):
         tp = Plottable(

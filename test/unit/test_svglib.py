@@ -7,9 +7,9 @@ import cmath
 from io import StringIO
 from botaplot.models.plottable import Plottable
 from botaplot.resources import resource_path
-from botaplot.util.svg_util import subdivide_path
-from svgpathtools import svg2paths, wsvg
-
+from botaplot.util.svg_util import subdivide_path, svg2lines
+from svgelements import (SVG, Path, Move, Shape)
+import json
 
 
 
@@ -28,30 +28,32 @@ class TestSVGLib(unittest.TestCase):
 
 
     def setUp(self):
-        self.paths, self.attributes = svg2paths(resource_path("images", "test_simple.svg"))
+        #self.paths, self.attributes = svg2paths(resource_path("images", "test_simple.svg"))
         # print("ATTRS", self.attributes)
+        self.svg = SVG.parse(resource_path("images", "test_simple.svg"))
 
     def test_naive_subdivision(self):
         # for path in self.paths:
         #     print("\tPath:",path)
-        subd = subdivide_path(self.paths[0], 50)
-        merged = zip(subd,
-            #          [
-            # (10.5, 80.0),
-            # (38.882277139029085, 33.30759797433691),
-            # (66.37603751030969, 33.38497473599764),
-            # (95.09913752005491, 80.2311084322917),
-            # (123.76490824106628, 126.71796745162936),
-            # (151.32690058650726, 126.64093130753213),
-            # (180.0, 80.0)]
-                     [(10.095285, 56.293531),
-                      (38.085334003323055, 21.39561777284851),
-                      (66.3302758289649, 56.44715604941179),
-                      (94.54531225862775, 91.19144538945112),
-                      (122.76582999999991, 56.29353100000003)]
-                     )
-        # print([x[0] for x in merged])
-        for pair in merged:
-            self.assertAlmostEqual(pair[0][0], pair[1][0])
-            self.assertAlmostEqual(pair[0][1], pair[1][1])
+        # subd = subdivide_path(self.svg, 50)
+        subd = svg2lines(self.svg)
+        print("There are %d" % len(subd), "lines")
+        print("SUBD:", json.dumps(subd, indent=2))
+        self.assertEqual(len(subd), 9)
+
+    def test_minimal_lines(self):
+        svg = SVG.parse(resource_path("images", "hearts_cropped_test.svg"))
+        print("SVG:", svg)
+        print("VALUES:", svg.values)
+        print("DIR:", dir(svg))
+        print("VIEWBOX:", svg.viewbox.__dict__)
+        self.assertAlmostEqual(svg.viewbox.width, 666.0, 3)
+        self.assertAlmostEqual(svg.viewbox.height, 720.0, 3)
+        lines = svg2lines(svg)
+        print("LEN:", len(lines))
+        print("LINES:", json.dumps(lines))
+        self.assertEqual(len(lines), 44)
+
+
+
 
