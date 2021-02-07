@@ -195,12 +195,13 @@ class Plottable(object):
 
     def calculate_dpi_via_svg(self, svg):
         """Figure out what our point size is relative to MM"""
-        if svg.values.get('width') is not None:
-            sys.stderr.write("Calculating DPI via Width/Viewport")
-            return svg.viewbox.width / self.convert_svg_units_to_mm(svg.values.get('width'))
-        else:
-            sys.stderr.write("Calculating DPI via Width/Viewport")
-            return svg.viewbox.width/(25.4*72.0)
+        return 72.0
+        # if svg.values.get('width') is not None:
+        #     sys.stderr.write("Calculating DPI via Width/Viewport")
+        #     return svg.viewbox.width / self.convert_svg_units_to_mm(svg.values.get('width'))
+        # else:
+        #     sys.stderr.write("Calculating DPI via Width/Viewport")
+        #     return svg.viewbox.width/(25.4*72.0)
 
     def transform_self(self, x=0.0, y=0.0, scalex=1.0, scaley=1.0):
         """Transform all internal coords by scale, moved by x,y"""

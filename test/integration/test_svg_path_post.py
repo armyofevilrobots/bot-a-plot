@@ -9,7 +9,7 @@ from svgelements import SVG
 
 from botaplot.models.plottable import Plottable
 from botaplot.resources import resource_path
-from botaplot.util.svg_util import subdivide_path, svg2lines
+from botaplot.util.svg_util import subdivide_path, svg2lines, calculate_mm_per_unit
 from botaplot.post.gcode_base import GCodePost
 from svgpathtools import svg2paths, wsvg
 
@@ -39,13 +39,14 @@ class TestSVGLibWithPost(unittest.TestCase):
     def test_simple_hearts_post(self):
         lines = svg2lines(self.svg)
         plottable = Plottable([Plottable.Line(line) for line in lines])
-        scale = plottable.calculate_dpi_via_svg(self.svg)
+        # scale = plottable.calculate_dpi_via_svg(self.svg)
+        scale = calculate_mm_per_unit(self.svg)
         print("BOUNDS", plottable.bounds)
         for b in range(len(plottable.bounds)):
             val = (87.638888, 87.5000, 912.500, 912.500)[b]
             self.assertAlmostEqual(val, plottable.bounds[b], 4)
 
-        self.assertAlmostEqual(scale, 0.36417, 5)
+        self.assertAlmostEqual(scale, 0.352777, 5)
         print("VALUES", self.svg.values)
         height = self.svg.values.get('height', "%fin" % (self.svg.viewbox.height/72.0))
         print("HEIGHT:", height)

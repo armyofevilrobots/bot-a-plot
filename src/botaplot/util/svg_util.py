@@ -14,6 +14,11 @@ from svgelements import (CubicBezier, Arc, SimpleLine, Line, QuadraticBezier,
 #     chunk_count = int(math.ceil(path.length()/max_length))
 #     points = [path.point(i / chunk_count) for i in range(chunk_count + 1)]
 #     return [(p.real, p.imag) for p in points]
+def calculate_mm_per_unit(svg):
+    """Inspect an SVG and determine it's scale factor so that we can
+    convert it to MM"""
+    # TODO: Actually calculate if there is a width and height unit value
+    return 25.4/72.0
 
 def subdivide_path(path, distance=0.5):
     logging.debug(f"Path is {path.__class__}:{path}")
@@ -24,14 +29,14 @@ def subdivide_path(path, distance=0.5):
         npoints = [(i / chunk_count) for i in range(chunk_count + 1)]
         points = path.npoint(npoints)
     # So do these, but it's broken
-    elif isinstance(path, (Line, SimpleLine, Close, Polyline)):
+    elif isinstance(path, (Line, SimpleLine, Close)):
         points = [path.point(0.0), path.point(1.0)]
     # elif isinstance(path, Polyline):
     #   TODO: Just duplicate the polyline points. No subdivision required.
     #         Also, we might be able to do the same with a polygon
     #     print("POLYLINE:")
     #     points = [path.point(0.0), path.point(1.0)]
-    elif isinstance(path, (Polygon, Circle)):
+    elif isinstance(path, (Polygon, Circle, Polyline)):
         points = [path.point(i / chunk_count) for i in range(chunk_count + 1)]
     else:
         logging.warning("Unusual component: %s" % path)

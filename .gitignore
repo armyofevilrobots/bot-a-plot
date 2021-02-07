@@ -7,7 +7,7 @@ __pycache__
 lib
 pyvenv.cfg
 share
-*gcode
+*.gcode
 /*.svg
 .idea
 botaplot.ini

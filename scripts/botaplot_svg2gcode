@@ -1,0 +1,58 @@
+#!/usr/bin/env python
+
+import math
+from io import StringIO
+import os.path
+import sys
+from botaplot.models.plottable import Plottable
+from botaplot.resources import resource_path
+from botaplot.util.svg_util import subdivide_path, svg2lines, calculate_mm_per_unit
+from botaplot.post.gcode_base import GCodePost
+from svgelements import SVG
+
+
+def read_svg_in_original_dimensions(path):
+    """Clean parse of the SVG in it's native dimensions"""
+
+    tsvg = SVG.parse(path, reify=True, ppi=25.4)  # Why inches for FSM's sake?!
+    if tsvg.values.get("width") is not None:
+        svg = tsvg
+    else:
+        svg = SVG.parse(os.path.normpath(sys.argv[1]),
+                        width=tsvg.viewbox.width,
+                        height=tsvg.viewbox.height,
+                        reify=True)  # Why inches for FSM's sake?!
+    return svg
+
+
+
+
+svg = read_svg_in_original_dimensions(os.path.normpath(sys.argv[1]))
+sys.stderr.write("\n\n=========================\n\n")
+
+post = GCodePost()
+post.feedrate = post.feedrate*1.20
+
+lines = svg2lines(svg)
+sys.stderr.write("Max X: %f\n" % max([ max([p[0] for p in line]) for line in lines]))
+sys.stderr.write("Min X: %f\n" % min([ min([p[0] for p in line]) for line in lines]))
+
+plottable = Plottable([Plottable.Line(line) for line in lines])
+ofp = StringIO()
+#plottable.clamp(225.0, 5.0, True)
+#plottable.scale(7.51*72/541, margins=(12.7+(25.4*(7.51-6.28)/2), 15-2.3))  # 96 DPI # Add 1mm for pen dia
+#plottable.scale(0.75, margins=(50,10))
+#sys.stderr.write("Plottable: %s\n" % [chunk for chunk in plottable])
+sys.stderr.write("Bounds are: %f %f %f %f\n" % plottable.bounds)
+scale = calculate_mm_per_unit(svg)  # 25.4/72.0 #plottable.calculate_dpi_via_svg(svg)
+sys.stderr.write("Scale is %s\n" % scale)
+# sys.stderr.write("Calc height is %s\n" % plottable.convert_svg_units_to_mm(svg.values['height']))
+sys.stderr.write("Calc height is %s\n" % plottable.convert_svg_units_to_mm(svg.values.get('height', "%fin" % (svg.viewbox.height/72.0))))
+bot_dist = post.bounds[1][1]-plottable.convert_svg_units_to_mm(svg.values.get('height', "%fin" % (svg.viewbox.height/72.0)))
+sys.stderr.write("BOT DIST IS %s\n" % bot_dist)
+sys.stderr.write("CALCULATED SCALE IS: %s\n" % scale)
+plottable.transform_self(scale*svg.viewbox.x+post.bounds[0][0], (-1.0*scale*svg.viewbox.y)+post.bounds[1][1] - bot_dist, scale, -scale)  #+post.bounds[1][1])
+
+post.write_lines_to_fp(plottable, ofp)
+print(ofp.getvalue())
+
