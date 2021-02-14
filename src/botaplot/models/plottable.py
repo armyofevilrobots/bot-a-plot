@@ -129,11 +129,11 @@ class Plottable(object):
             return xmin, ymin, xmax, ymax
 
 
-    def __init__(self, chunks=None):
+    def __init__(self, chunks=None, callback=None):
         if chunks is None:
             chunks = list()
         #self.chunks = chunks
-        self.chunks = self.optimize_lines(chunks)
+        self.chunks = chunks #self.optimize_lines(chunks, callback=callback)
 
     def clamp(self, graphsize=230.0, margins=10, invert=True):
         xmin = MAX_LENGTH
@@ -209,7 +209,7 @@ class Plottable(object):
             chunk.transform(x, y, scalex, scaley)
 
 
-    def optimize_lines(self, chunks=None, limit=100):
+    def optimize_lines(self, chunks=None, limit=100, callback=None):
         """
         Find the closest line endpoint at the end of a given drawn line,
         and add _that_ to the output list, correctly ordered. Ensures we
@@ -223,6 +223,8 @@ class Plottable(object):
         # into it so that we can more easily find their endpoints. It's a weakref
         # dict, so when we pull the lines _out_ of orig_chunks, they disappear
         # from the hash too.
+        if callback is not None and not callable(callback):
+            raise TypeError("Callback is not a callable")
         out_chunks = list()
         if chunks is not None:
             orig_chunks = chunks.copy()
@@ -232,9 +234,12 @@ class Plottable(object):
         out_chunks.append(line)
         next_chunk = NextLine(None, False, MAX_LENGTH, False)  # Which index, how far away
         while len(orig_chunks) > 0:
-            if len(orig_chunks) % 100 == 0:
-                sys.stderr.write("%d chunks left.\n" % len(orig_chunks))
-                sys.stderr.flush()
+            if len(orig_chunks) % 10 == 0:
+                if callback is not None:
+                    callback("optimizing", len(orig_chunks), chunks and len(chunks) or len(self.chunks))
+
+                # sys.stderr.write("%d chunks left.\n" % len(orig_chunks))
+                # sys.stderr.flush()
             span = min(limit, len(orig_chunks))
             for i in range(span):
                 d_e2e = distance(line.points[-1], orig_chunks[i].points[-1])
@@ -266,6 +271,8 @@ class Plottable(object):
             next_chunk = NextLine(None, False, MAX_LENGTH, False)  # Which index, how far away
             line = move_chunk
             out_chunks.append(move_chunk)
+        callback("optimizing", len(orig_chunks), chunks and len(chunks) or len(self.chunks))
+
         self.chunks = out_chunks
         return out_chunks
 

@@ -104,6 +104,7 @@ class BaseControl(Serializable):
     @value.setter
     def value(self, val):
         if self.parent and hasattr(self.parent, "on_value_changed"):
+            logging.info("On value changed inside control->parent")
             self.parent.on_value_changed(self, val)
         self._value = val
 
@@ -137,7 +138,7 @@ class BaseSource(SourceSinkBase):
         return self.parent is not None and self.parent.value or None
 
     def on_value_changed(self, source, new_value):
-        logging.info("Updating value")
+        logging.info(f"Updating value in source {source} to {new_value.__class__}")
         for sink in self.sinks:
             logging.info(f"Updating sink: {sink}")
             if hasattr(sink, "on_value_changed"):
@@ -201,8 +202,8 @@ class BaseSink(SourceSinkBase):
         """This gets called any time the source on the other side of the
         sink changes."""
         logging.info(f"{self} got an on_value_changed from {source} with val {new_value}")
-        if hasattr(self.parent, "on_sink_changed"):
-            self.parent.on_sink_changed(self, new_value)
+        if hasattr(self.parent, "on_value_changed"):
+            self.parent.on_value_changed(self, new_value)
         for callback in self.callbacks["on_value"]:
             callback(source, new_value)
 
@@ -284,13 +285,23 @@ class BaseNode(Serializable):
         ie: If an SVG file control changes in an SVG node, we can decide to
         change our internal SVG value, and update our sources.
         """
-        print("%s on_value_changed via %s with new value %s" % (self, source, value))
+        logging.info("%s on_value_changed via %s with new value %s" % (self, source, value))
+        if isinstance(source, BaseControl):
+            logging.info("Changing due to incoming control change")
+        elif isinstance(source, BaseSink):
+            logging.info("Changing due to incoming sink data")
+        elif value is None:
+            logging.info("None for new value.")
+        else:
+            logging.error(f"Change due to unknown source {source}")
         self.value = value
+        for source_i in self.sources:
+            source_i.on_value_changed(source, value)
 
-    def on_sink_changed(self, source, value):
-        """Called whenever a sink changes, for any reason. SHould be hooked
-        so that we can update our internal model based on the incoming data."""
-        logging.info(f"{self} received an on_sink_changed from {source} with data {value}")
+    # def on_sink_changed(self, source, value):
+    #     """Called whenever a sink changes, for any reason. SHould be hooked
+    #     so that we can update our internal model based on the incoming data."""
+    #     logging.info(f"{self} received an on_sink_changed from {source} with data {value}")
 
     @property
     def value(self):

@@ -13,7 +13,8 @@ from kivy.uix.image import Image
 from . import BaseControl
 from .node import BaseNode, BaseSource, BaseSink
 from ..resources import resource_path
-from svgpathtools.paths2svg import wsvg
+#from svgpathtools.paths2svg import wsvg
+from svgelements import SVG
 
 import cairosvg
 
@@ -60,7 +61,9 @@ class SVGNode(BaseNode):
         self.bind(value=self.update_preview)
 
     def update_preview(self, src, val):
+
         Logger.info(f"UI_SVGNode on value change {src},{val}")
+        return
         if self.value is not None and os.path.isfile(self.value):
             png_img =cairosvg.svg2png(url=self.value)
             texture = CoreImage(io.BytesIO(png_img), ext="png").texture

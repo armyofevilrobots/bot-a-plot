@@ -239,17 +239,23 @@ class SketchLayout(ScatterPlane):
             if child_cls is None:
                 Logger.error("Not adding UI component for model %s" % control)
                 continue
+            Logger.info(f"Child control args: {control.controller_args()}")
             child = child_cls(
                 **control.controller_args()
             )
-            widget.ids.component_list.add_widget(child)
 
+            _control = control
             def on_value_changed(obj, val):
                 Logger.info(f"On_value_change bind for {obj} with {val}")
-                control.value = val
+                _control.value = val  # This is the MODEL control change
+
             child.bind(value=on_value_changed)
-            if child.value:
-                on_value_changed(child, child.value)
+            # if child.value:
+            #     on_value_changed(child, child.value)
+            if control.value:
+                Logger.info(f"We have a value of {control.value} on control {control}")
+                control.value = control.value  # Trigger rebuild
+            widget.ids.component_list.add_widget(child)
 
         for sink in node.sinks:
             sink_ui_cls = getattr(Factory, sink.__class__.__name__, None)

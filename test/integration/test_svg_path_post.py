@@ -11,7 +11,6 @@ from botaplot.models.plottable import Plottable
 from botaplot.resources import resource_path
 from botaplot.util.svg_util import subdivide_path, svg2lines, calculate_mm_per_unit
 from botaplot.post.gcode_base import GCodePost
-from svgpathtools import svg2paths, wsvg
 
 
 class TestSVGLibWithPost(unittest.TestCase):

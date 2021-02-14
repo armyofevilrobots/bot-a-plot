@@ -1,7 +1,17 @@
 #!/usr/bin/env python
 
-from botaplot.ui.app import BotAPlotApp
+import click
+
+# @click.command()
+# @click.option("--gui", help="Launch the GUI", default=False, is_flag=True)
+def main(gui=False):
+    # if gui:
+    from botaplot.ui.app import BotAPlotApp
+    BotAPlotApp().run()
+    # else:
+    #     click.echo("Running CLI mode.")
+
 
 if __name__ == "__main__":
-    BotAPlotApp().run()
+    main()
 

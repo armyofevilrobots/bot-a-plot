@@ -3,8 +3,22 @@ import logging
 import cmath
 import sys
 from svgelements import (CubicBezier, Arc, SimpleLine, Line, QuadraticBezier,
-                         Close, Polygon, Circle, Polyline, Move, Shape, Path)
+                         Close, Polygon, Circle, Polyline, Move, Shape, Path,
+                         Rect, SVG)
+import os
 
+def read_svg_in_original_dimensions(path):
+    """Clean parse of the SVG in it's native dimensions"""
+    path = os.path.normpath(path)
+    tsvg = SVG.parse(path, reify=True, ppi=25.4)  # Why inches for FSM's sake?!
+    if tsvg.values.get("width") is not None:
+        svg = tsvg
+    else:
+        svg = SVG.parse(path,
+                        width=tsvg.viewbox.width,
+                        height=tsvg.viewbox.height,
+                        reify=True)  # Why inches for FSM's sake?!
+    return svg
 
 # def subdivide_path(path, max_length=2.0):
 #     """Returns VERY naive subdivision of a path.
@@ -36,12 +50,15 @@ def subdivide_path(path, distance=0.5):
     #         Also, we might be able to do the same with a polygon
     #     print("POLYLINE:")
     #     points = [path.point(0.0), path.point(1.0)]
-    elif isinstance(path, (Polygon, Circle, Polyline)):
+    elif isinstance(path, (Polygon, Circle)):
         points = [path.point(i / chunk_count) for i in range(chunk_count + 1)]
+    elif isinstance(path, (Polyline, Rect)):
+        points = subdivide_path(path.segments())
     else:
         logging.warning("Unusual component: %s" % path)
         # And this is a catch all.
-        points = [path.npoint(i/chunk_count) for i in range(chunk_count + 1)]
+        # points = [path.npoint(i/chunk_count) for i in range(chunk_count + 1)]
+        points = list()
     return points
 
 
@@ -59,16 +76,19 @@ def svg2lines(svg, distance=0.5):
                     continue  # Skip all the moves
                 else:
                     try:
-                        lines.append(
-                            [[x, y] for [x, y] in subdivide_path(sub, distance)]
-                        )
+                        if sub:  # Skip empty subsections
+                            lines.append(
+                                [[x, y] for [x, y] in subdivide_path(sub, distance)]
+                            )
                     except ZeroDivisionError as exc:
-                        sys.stderr.write("Skipping zero len line")
+                        sys.stderr.write("Skipping zero len line\n")
+                    except ValueError as exc:
+                        sys.stderr.write("Invalid/Empty segment: %s\n" % exc)
         elif isinstance(element, Shape):
             try:
-                lines.append(
-                    [[x, y] for [x, y] in subdivide_path(element, distance)]
-                )
+                tmpsub = [[x, y] for [x, y] in subdivide_path(element, distance)]
+                if tmpsub:
+                    lines.append(tmpsub)
             except ZeroDivisionError as exc:
                 sys.stderr.write("Skipping zero len line")
     return lines
