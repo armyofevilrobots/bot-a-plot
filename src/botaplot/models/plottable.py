@@ -118,7 +118,7 @@ class Plottable(object):
             return "<PlotChunk:Line empty>"
 
         def transform(self, x, y, scalex, scaley):
-            self.points = [(x+p[0]*scalex, y+p[1]*scaley) for p in self.points]
+            return [(x+p[0]*scalex, y+p[1]*scaley) for p in self.points]
 
         @property
         def bounds(self):
@@ -180,7 +180,7 @@ class Plottable(object):
         ymin = min(bound[1] for bound in bounds)
         xmax = max(bound[2] for bound in bounds)
         ymax = max(bound[3] for bound in bounds)
-        return xmin,ymin,xmax,ymax
+        return xmin, ymin, xmax, ymax
 
 
     @staticmethod
@@ -205,9 +205,12 @@ class Plottable(object):
 
     def transform_self(self, x=0.0, y=0.0, scalex=1.0, scaley=1.0):
         """Transform all internal coords by scale, moved by x,y"""
-        for chunk in self.chunks:
-            chunk.transform(x, y, scalex, scaley)
+        self.chunks = self.transform(x, y, scalex, scaley)
+        # for chunk in self.chunks:
+        #     chunk.transform(x, y, scalex, scaley)
 
+    def transform(self, x=0.0, y=0.0, scalex=1.0, scaley=1.0):
+        return [chunk.transform(x, y, scalex, scaley) for chunk in self.chunks]
 
     def optimize_lines(self, chunks=None, limit=100, callback=None):
         """

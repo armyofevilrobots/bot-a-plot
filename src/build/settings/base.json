@@ -1,0 +1,6 @@
+{
+    "app_name": "Bot-à-Plot",
+    "author": "Derek Anderson",
+    "main_module": "src/main/python/main.py",
+    "version": "0.0.0"
+}
