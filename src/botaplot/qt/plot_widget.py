@@ -80,6 +80,7 @@ class QPlotRunWidget(QWidget):
         controls_group.setLayout(pvlayout)
         #Progressbar
         self.plot_progress = QProgressBar()
+        self.plot_progress.setRange(0, 100)
         pvlayout.addWidget(self.plot_progress)
         #Rewind, start/pause, Cancel
         ctl_but_group = QGroupBox()
@@ -105,7 +106,7 @@ class QPlotRunWidget(QWidget):
             if LayerModel.current.sender is not None and len(LayerModel.current.plottables) > 0:
                 if LayerModel.current.sender.runner is None:
                     logger.info("Starting plot")
-                    LayerModel.current.run_plot()
+                    LayerModel.current.run_plot(self.progress_callback)
                     return True
                 elif LayerModel.current.machine.protocol.paused:
                     LayerModel.current.machine.protocol.paused = False
@@ -124,6 +125,7 @@ class QPlotRunWidget(QWidget):
 
     def progress_callback(self, position, size, cmd):
         logger.info("Callback at %d, %d, '%s'", position, size, cmd)
+        self.plot_progress.setValue(round(100*(position/size)))
 
     def _fill_telnet_devices(self):
         self.device_select.clear()

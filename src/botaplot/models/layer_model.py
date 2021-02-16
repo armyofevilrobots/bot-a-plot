@@ -1,6 +1,9 @@
 import logging
 import os
 from collections import deque, OrderedDict
+
+from PyQt5.QtCore import pyqtSignal, QThread
+
 from botaplot.util.svg_util import svg2lines, calculate_mm_per_unit, read_svg_in_original_dimensions
 from .machine import Machine
 from .plottable import Plottable
@@ -8,6 +11,20 @@ import threading
 from io import StringIO
 
 logger = logging.getLogger(__name__)
+
+#
+# class PlotThread(QThread):
+#     """
+#     Runs a counter thread.
+#     """
+#     countChanged = pyqtSignal(int, int, str)
+#
+#     def run(self):
+#         count = 0
+#         while count < TIME_LIMIT:
+#             count +=1
+#             time.sleep(1)
+#             self.countChanged.emit(count)
 
 class PlotSender(object):
     """slices and sends the plottables"""
@@ -34,7 +51,10 @@ class PlotSender(object):
         LayerModel.current.machine.post.write_lines_to_fp(
             plottable, ofp)
         self.gcode = ofp.getvalue()
-        logger.debug("GCode is %s", self.gcode)
+        logger.debug("GCode is %s", len(self.gcode))
+        logger.debug("Callback is %s", callback)
+        # TODO: Switch to https://riptutorial.com/pyqt5/example/29500/basic-pyqt-progress-bar
+        # TODO: See the PlotThread class I've started above.
         self.runner = threading.Thread(target=self.plot_monitor, args=[callback, ], daemon=True)
         self.runner.start()
 
@@ -50,6 +70,7 @@ class PlotSender(object):
             with sem:
                 callback(*args, **kw)
 
+        logger.debug("The LM machine callback is %s", callback)
         LayerModel.current.machine.plot(self.gcode, callback)
 
 
