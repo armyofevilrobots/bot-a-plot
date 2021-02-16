@@ -13,6 +13,7 @@ class TelnetTransport(BaseTransport):
 
     def __init__(self, address, port=23):
         """The port is the path to the serial port."""
+        self.portname = address
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sock.connect((address, port))
         self.file = self.sock.makefile("rwb")
@@ -37,4 +38,5 @@ class SerialTransport(BaseTransport):
 
     def __init__(self, port, speed=115200, ):
         """The port is the path to the serial port."""
+        self.portname = port
         self.file = serial.Serial(port, speed, timeout=30)

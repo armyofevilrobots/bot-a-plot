@@ -6,6 +6,7 @@ from svgelements import (CubicBezier, Arc, SimpleLine, Line, QuadraticBezier,
                          Close, Polygon, Circle, Polyline, Move, Shape, Path,
                          Rect, SVG)
 import os
+logger = logging.getLogger(__name__)
 
 def read_svg_in_original_dimensions(path):
     """Clean parse of the SVG in it's native dimensions"""
@@ -35,7 +36,6 @@ def calculate_mm_per_unit(svg):
     return 25.4/72.0
 
 def subdivide_path(path, distance=0.5):
-    logging.debug(f"Path is {path.__class__}:{path}")
     chunk_count = int(math.ceil(path.length() / distance))
     # print("Using %d chunks" % chunk_count)
     # These support Numpy acceleration

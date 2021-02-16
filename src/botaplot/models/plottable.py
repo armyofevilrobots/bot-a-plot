@@ -206,8 +206,6 @@ class Plottable(object):
     def transform_self(self, x=0.0, y=0.0, scalex=1.0, scaley=1.0):
         """Transform all internal coords by scale, moved by x,y"""
         self.chunks = self.transform(x, y, scalex, scaley)
-        # for chunk in self.chunks:
-        #     chunk.transform(x, y, scalex, scaley)
 
     def transform(self, x=0.0, y=0.0, scalex=1.0, scaley=1.0):
         return [chunk.transform(x, y, scalex, scaley) for chunk in self.chunks]
