@@ -3,7 +3,7 @@ from PyQt5.QtGui import QIcon, QCloseEvent, QKeySequence, QPainter, QStandardIte
 from PyQt5.QtWidgets import (QMainWindow, QMessageBox, QAction, qApp, QWidget,
                              QVBoxLayout, QCheckBox, QComboBox, QCheckBox, QFileDialog, QHBoxLayout, QDockWidget,
                              QShortcut, QTextEdit, QMenu, QLabel, QSizePolicy, QListWidget, QListView, QGroupBox,
-                             QProgressBar, QPushButton, QErrorMessage,
+                             QProgressBar, QPushButton, QErrorMessage, QGridLayout,
                              )
 from botaplot.models import Plottable
 from botaplot.resources import resource_path
@@ -94,8 +94,41 @@ class QPlotRunWidget(QWidget):
         ctl_but_layout.addWidget(self.play_button)
         ctl_but_group.setLayout(ctl_but_layout)
 
+        #UpUpDownDownLeftRightLeftRight_B_A_START
+        mv_but_group = QGroupBox("Manual Control")
+        mv_but_layout = QGridLayout()
+        mv_but_group.setAlignment(Qt.AlignHCenter)
+        self.mv_home_button = QPushButton(
+            QIcon(resource_path("images", "baseline_home_black_18dp.png")), "Home")
+        self.mv_back_button = QPushButton(
+            QIcon(resource_path("images", "baseline_north_west_black_18dp.png")), "Back")
+        self.mv_pen_up_button = QPushButton(
+            QIcon(resource_path("images", "pen_up_black_18dp.png")), "Pen Up")
+        self.mv_pen_down_button = QPushButton(
+            QIcon(resource_path("images", "pen_down_black_18dp.png")), "Pen Down")
+        self.mv_up_button = QPushButton(
+            QIcon(resource_path("images", "baseline_keyboard_arrow_up_black_18dp.png")), "Up")
+        self.mv_down_button = QPushButton(
+            QIcon(resource_path("images", "baseline_keyboard_arrow_down_black_18dp.png")), "Down")
+        self.mv_left_button = QPushButton(
+            QIcon(resource_path("images", "baseline_keyboard_arrow_left_black_18dp.png")), "Left")
+        self.mv_right_button = QPushButton(
+            QIcon(resource_path("images", "baseline_keyboard_arrow_right_black_18dp.png")), "Right")
+        self.mv_set_origin_button = QPushButton(
+            QIcon(resource_path("images", "baseline_center_focus_strong_black_18dp.png")), "Set Origin")
+        mv_but_layout.addWidget(self.mv_up_button, 0, 1)
+        mv_but_layout.addWidget(self.mv_down_button, 2, 1)
+        mv_but_layout.addWidget(self.mv_pen_up_button, 0, 2)
+        mv_but_layout.addWidget(self.mv_pen_down_button, 2, 2)
+        mv_but_layout.addWidget(self.mv_left_button, 1, 0)
+        mv_but_layout.addWidget(self.mv_right_button, 1, 2)
+        mv_but_layout.addWidget(self.mv_home_button, 2, 0)
+        mv_but_layout.addWidget(self.mv_set_origin_button, 1, 1)
+        mv_but_group.setLayout(mv_but_layout)
+
         pvlayout.addWidget(ctl_but_group)
         v_layout.addWidget(controls_group)
+        v_layout.addWidget(mv_but_group)
 
         self.setLayout(v_layout)
 

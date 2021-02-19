@@ -28,16 +28,6 @@ logger = logging.getLogger(__name__)
 
 class PlotSender(object):
     """slices and sends the plottables"""
-    # def send_to_machine(self):
-    #     gcode = ()
-    #     ofp = StringIO()
-    #     plottable = LayerModel.current.plottables["all"][0]
-    #     plottable = plottable.transform(*LayerModel.current.get_transform(plottable))
-    #     LayerModel.current.machine.post.write_lines_to_fp(
-    #         plottable, ofp)
-    #     gcode = ofp.getvalue()
-    #     logger.debug("GCode is %s", gcode)
-    #     LayerModel.current.machine.plot(gcode)
     def __init__(self):
         self.runner = None
 
