@@ -8,13 +8,18 @@ class SimpleAsciiProtocol(object):
     def __init__(self, wait_for_ok=True):
         self.wait_for_ok = wait_for_ok
         self.paused = True
+        self.ready = True
+        self.die = False
 
     def plot(self, cmds_source, transport, callback=None):
+        self.ready = False
         self.paused = False
         pending_oks = 0
         for i, cmd in enumerate(cmds_source):
-            while self.paused:
+            while self.paused and not self.die:
                 time.sleep(1)
+            if self.die:
+                break
             print("Sending %s" % cmd)
             print("Callback:", callback)
 
@@ -24,6 +29,8 @@ class SimpleAsciiProtocol(object):
             transport.write(("%s\n" % cmd).encode('ascii'))
             if self.wait_for_ok:
                 while pending_oks > 5:
+                    if self.die:
+                        break
                     response = transport.readline().decode('ascii').strip()
                     print("Got response", response)
                     if response is None or not response or "OK" not in response.upper():
@@ -31,4 +38,10 @@ class SimpleAsciiProtocol(object):
                         raise IOError("Invalid response from upstream plotter.")
                     else:
                         pending_oks -= 1
+        self.ready = True  # We're done.
+
+    def rewind(self):
+        """Kill the plot and rewind to the beginning"""
+        self.die = True
+
 

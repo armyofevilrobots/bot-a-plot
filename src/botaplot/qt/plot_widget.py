@@ -135,14 +135,16 @@ class QPlotRunWidget(QWidget):
 
     def plot_clicked(self, value=None):
         logger.info("Plot clicked with value %s", value)
-        if value:
+        if self.play_button.isChecked():
             if LayerModel.current.sender is not None and len(LayerModel.current.plottables) > 0:
                 if LayerModel.current.sender.runner is None:
                     logger.info("Starting plot")
                     LayerModel.current.run_plot(self.progress_callback)
+                    # self.play_button.setChecked(True)
                     return True
                 elif LayerModel.current.machine.protocol.paused:
                     LayerModel.current.machine.protocol.paused = False
+                    # self.play_button.setChecked(True)
                     return True
             else:
                 logger.error("Invalid/Missing plot data.")
@@ -151,10 +153,12 @@ class QPlotRunWidget(QWidget):
                 error_dialog.setText("Nothing to plot")
                 error_dialog.setInformativeText('No sender configured. Machine not set up or no source data?')
                 error_dialog.exec_()
+                # self.play_button.setChecked(False)
                 return False
         else:
             LayerModel.current.machine.protocol.paused = True
-            return False
+            self.play_button.setChecked(False)
+            return True
 
     def progress_callback(self, position, size, cmd):
         logger.info("Callback at %d, %d, '%s'", position, size, cmd)

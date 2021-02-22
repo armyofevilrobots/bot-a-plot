@@ -9,6 +9,7 @@ from .machine import Machine
 from .plottable import Plottable
 import threading
 from io import StringIO
+from .plot_sender import PlotSender
 
 logger = logging.getLogger(__name__)
 
@@ -26,42 +27,6 @@ logger = logging.getLogger(__name__)
 #             time.sleep(1)
 #             self.countChanged.emit(count)
 
-class PlotSender(object):
-    """slices and sends the plottables"""
-    def __init__(self):
-        self.runner = None
-
-
-    def plot(self, plottables=list(), callback=None):
-        """Create the stuff we'll actually send"""
-        ofp = StringIO()
-        # plottable = LayerModel.current.plottables["all"][0]
-        plottable = plottables[0]
-        plottable = plottable.transform(*LayerModel.current.get_transform(plottable))
-        LayerModel.current.machine.post.write_lines_to_fp(
-            plottable, ofp)
-        self.gcode = ofp.getvalue()
-        logger.debug("GCode is %s", len(self.gcode))
-        logger.debug("Callback is %s", callback)
-        # TODO: Switch to https://riptutorial.com/pyqt5/example/29500/basic-pyqt-progress-bar
-        # TODO: See the PlotThread class I've started above.
-        self.runner = threading.Thread(target=self.plot_monitor, args=[callback, ], daemon=True)
-        self.runner.start()
-
-    def pause(self, paused=True):
-        LayerModel.current.machine.protocol.paused = paused
-
-    def plot_monitor(self, callback):
-        """Background thread that watches stuff and sends plot commands"""
-        sem = threading.Semaphore()
-
-        def _safe_callback(*args, **kw):
-            logger.debug("Callback: %s", args)
-            with sem:
-                callback(*args, **kw)
-
-        logger.debug("The LM machine callback is %s", callback)
-        LayerModel.current.machine.plot(self.gcode, callback)
 
 
 class LayerModel(object):
