@@ -9,7 +9,7 @@ from .machine import Machine
 from .plottable import Plottable
 import threading
 from io import StringIO
-from .plot_sender import PlotSender
+from .plot_sender import PlotWorker
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 
 
 
-class LayerModel(object):
+class ProjectModel(object):
     """The main app model"""
 
     current = None
@@ -37,7 +37,7 @@ class LayerModel(object):
     history = deque(maxlen=32)
     callbacks = list()
     default_path = "X/Users/derek/Downloads/Beep Logo Pack 2020-06-24/"
-    sender = None
+    plot_worker = None
 
     def __init__(self, svg=None, svg_path=None, enabled_groups=None, post=None, machine=None):
         self.svg = svg
@@ -47,7 +47,7 @@ class LayerModel(object):
         self.dirty = False
         self.plottables = dict()
         self.scale = 1.0
-        self.sender = PlotSender()
+        self.plot_worker = PlotWorker.new(self.machine)
 
     @classmethod
     def watch(cls, fun):
@@ -89,5 +89,5 @@ class LayerModel(object):
                 self.scale, self.scale]
 
     def run_plot(self, callback=None):
-        if self.sender is not None:
-            self.sender.plot([self.plottables["all"][0], ], callback)  # TODO: Make this send all enabled plottables
+        if self.plot_worker is not None:
+            self.plot_worker.plot([self.plottables["all"][0], ], callback)  # TODO: Make this send all enabled plottables

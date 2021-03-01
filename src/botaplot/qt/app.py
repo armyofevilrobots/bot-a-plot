@@ -1,25 +1,19 @@
 import logging
+
 import coloredlogs
+
 coloredlogs.install(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 import sys
 import os
-from io import StringIO
-
-from PyQt5 import QtGui
-
+from PyQt5.QtCore import Qt, QVariant
+from PyQt5.QtGui import QIcon, QCloseEvent, QKeySequence, QStandardItemModel, QStandardItem
+from PyQt5.QtWidgets import (QMainWindow, QAction, qApp, QWidget,
+                             QFileDialog, QHBoxLayout, QDockWidget,
+                             QShortcut, QListView, QApplication)
+#from fbs_runtime.application_context.PyQt5 import ApplicationContext
 from botaplot.resources import resource_path
-from svgelements import Group
-
-from PyQt5.QtCore import Qt, QVariant, QPoint
-from PyQt5.QtGui import QIcon, QCloseEvent, QKeySequence, QPainter, QStandardItemModel, QStandardItem, QPen
-from PyQt5.QtWidgets import (QMainWindow, QMessageBox, QAction, qApp, QWidget,
-                             QVBoxLayout, QCheckBox, QComboBox, QCheckBox, QFileDialog, QHBoxLayout, QDockWidget,
-                             QShortcut, QTextEdit, QMenu, QLabel, QSizePolicy, QListWidget, QListView,
-                             )
-from fbs_runtime.application_context.PyQt5 import ApplicationContext
-from botaplot.models.layer_model import LayerModel
-from botaplot.models.machine import Machine, BotAPlot
+from botaplot.models.project_model import ProjectModel
 from botaplot.qt.plot_widget import QPlotRunWidget
 from botaplot.qt.plot_preview import QPlotPreviewWidget
 
@@ -28,10 +22,12 @@ class BAPMainWindow(QMainWindow):
 
     def __init__(self, parent=None, flags=Qt.WindowFlags()):
         super().__init__(parent, flags)
+        logger.info("Starting up, setting Icons...")
         appicon = QIcon(resource_path("images", "aoer_logo_min.png"))
-        self.setWindowTitle("Bot-à-Plot")
         qApp.setWindowIcon(appicon)
         self.setWindowIcon(appicon)
+
+        self.setWindowTitle("Bot-à-Plot")
         self.statusBar()
 
         self.central_widget = QWidget(self)
@@ -67,7 +63,7 @@ class BAPMainWindow(QMainWindow):
 
         self.menu_bar = self.setup_menu()
 
-        LayerModel.watch(self.model_change)
+        ProjectModel.watch(self.model_change)
 
     def setup_layer_dock(self):
         return QDockWidget("Layers/Groups", self)
@@ -82,8 +78,8 @@ class BAPMainWindow(QMainWindow):
             #     print("Found group: ", group.values)
             self.layer_model.clear()
 
-            logger.info("Current plottables are %s", LayerModel.current.plottables.keys())
-            for layername, (el, length) in LayerModel.current.plottables.items():
+            logger.info("Current plottables are %s", ProjectModel.current.plottables.keys())
+            for layername, (el, length) in ProjectModel.current.plottables.items():
                 item = QStandardItem(f"{layername}:{el.__class__.__name__} - {length} chunks")
                 item.setFlags(Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
                 item.setData(QVariant(Qt.Checked), Qt.CheckStateRole)
@@ -96,11 +92,11 @@ class BAPMainWindow(QMainWindow):
     def filedialog_open_svg(self):
         options = QFileDialog.Options() | QFileDialog.DontUseNativeDialog  # noqa
         filename, _ = QFileDialog.getOpenFileName(self, "Open SVG File",
-                                                  LayerModel.default_path,
+                                                  ProjectModel.default_path,
                                                   "SVG files (*.svg)",
                                                   "*.svg",
                                                   options=options)
-        LayerModel.load_from_svg(filename)
+        ProjectModel.load_from_svg(filename)
 
 
     def show_layers(self, *args):
@@ -186,12 +182,15 @@ class BAPMainWindow(QMainWindow):
         event.accept()
 
 def run_app():
-    if LayerModel.current is None:
-        LayerModel.current = LayerModel()
-    appctxt = ApplicationContext()
+    app = QApplication(sys.argv)
+    if ProjectModel.current is None:
+        ProjectModel.current = ProjectModel()
+    # appctxt = ApplicationContext()
     window = BAPMainWindow()
+
 
     window.resize(900, 600)
     window.show()
-    exit_code = appctxt.app.exec_()
+    exit_code = app.exec_()
+    # exit_code = appctxt.app.exec_()
     sys.exit(exit_code)

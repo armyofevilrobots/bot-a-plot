@@ -3,9 +3,11 @@ from ..transports import *
 from ..protocols import *
 from ..models.plottable import Plottable
 from io import StringIO
+from .machine import BaseMachine
 
 
-class BotAPlot(object):
+
+class BotAPlot(BaseMachine):
     """
     This is the basic botaplot machine, with M280/281 height control and
     works best at mm scale after a G28 X0 Y0.

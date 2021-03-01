@@ -42,15 +42,6 @@ class BotAPlot(Machine):
         """
         logger.info("Sending commands [%d items] with callback: %s", len(commands), callback)
         self.protocol.plot(commands.split("\n"), self.transport, callback=callback)
-    #
-    # def post(self, lines: Plottable, fp=None):
-    #     if fp is None:
-    #         ofp = StringIO()
-    #     else:
-    #         ofp = fp
-    #     self.post.post_lines_to_fp(lines.transform(*transform), ofp)
-    #     if fp is None:
-    #         return ofp.getvalue()
 
 
 Machine.machine_catalog["generic_gcode"] = Machine()

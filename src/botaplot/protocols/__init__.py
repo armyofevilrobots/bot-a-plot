@@ -21,10 +21,11 @@ class SimpleAsciiProtocol(object):
             if self.die:
                 break
             print("Sending %s" % cmd)
-            print("Callback:", callback)
+            print("Callback:", callback, callable(callback))
 
             if callback is not None and callable(callback):
                 callback(i, len(cmds_source), cmd)
+
             pending_oks += 1
             transport.write(("%s\n" % cmd).encode('ascii'))
             if self.wait_for_ok:

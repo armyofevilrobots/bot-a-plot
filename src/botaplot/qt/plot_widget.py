@@ -1,19 +1,25 @@
-from PyQt5.QtCore import Qt, pyqtSlot, QVariant, QPoint
+from queue import Queue
+
+from PyQt5.QtCore import Qt, pyqtSlot, QVariant, QPoint, QObject, pyqtSignal, QThread, QRunnable, QThreadPool
 from PyQt5.QtGui import QIcon, QCloseEvent, QKeySequence, QPainter, QStandardItemModel, QStandardItem, QPen
 from PyQt5.QtWidgets import (QMainWindow, QMessageBox, QAction, qApp, QWidget,
                              QVBoxLayout, QCheckBox, QComboBox, QCheckBox, QFileDialog, QHBoxLayout, QDockWidget,
                              QShortcut, QTextEdit, QMenu, QLabel, QSizePolicy, QListWidget, QListView, QGroupBox,
                              QProgressBar, QPushButton, QErrorMessage, QGridLayout,
-                             )
+                             QLineEdit, QSpinBox)
 from botaplot.models import Plottable
+from botaplot.models.plot_sender import PlotWorker, PlotWorkerState
 from botaplot.resources import resource_path
-from botaplot.models.layer_model import LayerModel
+from botaplot.models.project_model import ProjectModel
 from botaplot.models.machine import Machine
 from botaplot.transports import TelnetTransport,SerialTransport
 import os
 import sys
 import os.path
 import logging
+import time
+import uuid
+from io import StringIO
 logger = logging.getLogger(__name__)
 
 
@@ -23,6 +29,59 @@ def _guess_ttys():
                 if filen.startswith("tty.usb")]
     else:
         return list()
+
+class QPlotMonitor(QObject):
+    """Just watches progress and machine state, and updates the UI."""
+    progress_signal = pyqtSignal(int, int, str)
+    state_signal = pyqtSignal(object)
+
+    def __init__(self, plot_worker:PlotWorker):
+        super().__init__()
+        self.plot_worker = plot_worker
+        # self.notifier = plot_worker.progress_notify
+        # self.queue = plot_worker.progress_q
+
+    def run(self):
+        logger.info("Plot monitor started.")
+        self.plot_worker.progress_q.put([1,1,"Ready"])
+        logger.info("PROGRESS QUEUE: %s", self.plot_worker.progress_q)
+        while True:
+            while not self.plot_worker.progress_q.empty():
+                logger.info("Got an update...")
+                progress = self.plot_worker.progress_q.get()
+                logger.info("WAS: %s", progress)
+                # DO SOME NOTIFY MAGIC...
+                logger.info("Emitting: %s" % progress)
+                self.progress_signal.emit(*progress)
+                logger.info("Emitted")
+            time.sleep(0.1)  # TODO: Fix this with a better method
+            if self.plot_worker.dead:
+                break
+            # logger.info("Waiting")
+            # if self.notifier.
+            # self.notifier.wait()
+            # logger.info("Done waiting. Back to top.")
+
+
+class QPostProcessComplete(QObject):
+    finished = pyqtSignal(bool)
+
+class QPostProcessRunnable(QRunnable):
+    """Slices up a single thing for plotting"""
+    def __init__(self, plottables=None):
+        super(QPostProcessRunnable, self).__init__()
+        self.finished = QPostProcessComplete()
+        self.plottables = plottables or list()
+
+    def run(self):
+        ofp = StringIO()
+        # plottable = LayerModel.current.plottables["all"][0]
+        plottable = self.plottables[0]  # TODO: This should plot EVERYTHING
+        plottable = plottable.transform(*ProjectModel.current.get_transform(plottable))
+        ProjectModel.current.machine.post.write_lines_to_fp(
+            plottable, ofp)
+        self.gcode = ofp.getvalue()
+        self.finished.finished.emit(True)
 
 
 
@@ -42,7 +101,7 @@ class QPlotRunWidget(QWidget):
         self.machine_select = QComboBox()
         for name, item in Machine.machine_catalog.items():
             self.machine_select.addItem(name, item)
-            if LayerModel.current is not None and LayerModel.current.machine == item:
+            if ProjectModel.current is not None and ProjectModel.current.machine == item:
                 logger.info("Selecting machine: %s" % name)
                 self.machine_select.setCurrentIndex(self.machine_select.count()-1)
         target_box_layout.addWidget(self.machine_select)
@@ -51,8 +110,8 @@ class QPlotRunWidget(QWidget):
         self.transport_select = QComboBox()
         self.transport_select.addItem(QIcon(resource_path("images", "baseline_usb_black_18dp.png")), "Serial", SerialTransport)
         self.transport_select.addItem(QIcon(resource_path("images", "baseline_settings_ethernet_black_18dp.png")),"Telnet", TelnetTransport)
-        if LayerModel.current is not None and LayerModel.current.machine.transport is not None:
-            if isinstance(LayerModel.current.machine.transport, TelnetTransport):
+        if ProjectModel.current is not None and ProjectModel.current.machine.transport is not None:
+            if isinstance(ProjectModel.current.machine.transport, TelnetTransport):
                 self.transport_select.setCurrentIndex(1)
             else:
                 self.transport_select.setCurrentIndex(0)
@@ -61,8 +120,8 @@ class QPlotRunWidget(QWidget):
 
         # Now for the ports...
         self.device_select = QComboBox()
-        if LayerModel.current is not None and LayerModel.current.machine.transport is not None:
-            if isinstance(LayerModel.current.machine.transport, SerialTransport):
+        if ProjectModel.current is not None and ProjectModel.current.machine.transport is not None:
+            if isinstance(ProjectModel.current.machine.transport, SerialTransport):
                 self._fill_serial_devices()
             else:
                 self._fill_telnet_devices()
@@ -78,14 +137,21 @@ class QPlotRunWidget(QWidget):
         pvlayout = QVBoxLayout()
         pvlayout.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
         controls_group.setLayout(pvlayout)
+
         #Progressbar
         self.plot_progress = QProgressBar()
         self.plot_progress.setRange(0, 100)
         pvlayout.addWidget(self.plot_progress)
+        # Message/last GCode|HPGL command
+        self.plot_msg = QLineEdit(self)
+        self.plot_msg.setText("Messages...")
+        self.plot_msg.setEnabled(False)
+        pvlayout.addWidget(self.plot_msg)
+
         #Rewind, start/pause, Cancel
         ctl_but_group = QGroupBox()
         ctl_but_group.setAlignment(Qt.AlignHCenter)
-        self.rewind_button = QPushButton(QIcon(resource_path("images", "baseline_skip_previous_black_18dp.png")),"Rew")
+        self.rewind_button = QPushButton(QIcon(resource_path("images", "baseline_skip_previous_black_18dp.png")),"Reset")
         self.play_button = QPushButton(QIcon(resource_path("images", "baseline_play_arrow_black_18dp.png")),"Run")
         self.play_button.setCheckable(True)
         self.play_button.clicked.connect(self.plot_clicked)
@@ -98,6 +164,12 @@ class QPlotRunWidget(QWidget):
         mv_but_group = QGroupBox("Manual Control")
         mv_but_layout = QGridLayout()
         mv_but_group.setAlignment(Qt.AlignHCenter)
+        self.move_size_box = QComboBox()
+        self.move_size_box.addItem("1mm", 1)
+        self.move_size_box.addItem("5mm", 5)
+        self.move_size_box.addItem("10mm", 10)
+        self.move_size_box.addItem("25mm", 25)
+        self.move_size_box.addItem("100mm", 100)
         self.mv_home_button = QPushButton(
             QIcon(resource_path("images", "baseline_home_black_18dp.png")), "Home")
         self.mv_back_button = QPushButton(
@@ -116,6 +188,7 @@ class QPlotRunWidget(QWidget):
             QIcon(resource_path("images", "baseline_keyboard_arrow_right_black_18dp.png")), "Right")
         self.mv_set_origin_button = QPushButton(
             QIcon(resource_path("images", "baseline_center_focus_strong_black_18dp.png")), "Set Origin")
+        mv_but_layout.addWidget(self.move_size_box, 0, 0)
         mv_but_layout.addWidget(self.mv_up_button, 0, 1)
         mv_but_layout.addWidget(self.mv_down_button, 2, 1)
         mv_but_layout.addWidget(self.mv_pen_up_button, 0, 2)
@@ -132,20 +205,61 @@ class QPlotRunWidget(QWidget):
 
         self.setLayout(v_layout)
 
-
     def plot_clicked(self, value=None):
         logger.info("Plot clicked with value %s", value)
-        if self.play_button.isChecked():
-            if LayerModel.current.sender is not None and len(LayerModel.current.plottables) > 0:
-                if LayerModel.current.sender.runner is None:
+        if self.play_button.isChecked():  # It JUST got checked when it was clicked.
+            logger.info("The button is DOWN")
+            if (ProjectModel.current.plot_worker is not None
+                    and len(ProjectModel.current.plottables) > 0):
+                logger.info("We have a project with valid plottables")
+                logger.info("Current state: %s:%s",
+                            type(ProjectModel.current.plot_worker.state),
+                            ProjectModel.current.plot_worker.state)
+                # if ProjectModel.current.plot_worker.runner is None:
+                if ProjectModel.current.plot_worker.state is PlotWorkerState.READY:
                     logger.info("Starting plot")
-                    LayerModel.current.run_plot(self.progress_callback)
+
+                    self.plot_msg.setText("Post Processor dispatching.")
+                    # First we slice it up/post it
+                    post = QPostProcessRunnable([ProjectModel.current.plottables["all"][0], ])
+                    pool = QThreadPool.globalInstance()
+
+                    def run_plot(finished):
+                        load_id = str(uuid.uuid1())
+                        logger.info("Finished: %s", finished)
+                        ProjectModel.current.plot_worker.send(
+                            f"LOAD[{load_id}]:{post.gcode}")
+                        result = PlotWorker.parse_result(ProjectModel.current.plot_worker.recv(True))
+                        logger.info("Result is: %s", result)
+                        if result['id'] != load_id:
+                            raise RuntimeError("Mismatched command IDs on GCODE LOAD")
+                        plot_id = str(uuid.uuid1())
+                        ProjectModel.current.plot_worker.send(
+                            f"START[{plot_id}]")
+                        # This would block, actually, if we waited for a response.
+
+                        self.monitor = QPlotMonitor(ProjectModel.current.plot_worker)
+                        self.monitor_thread = QThread()
+                        self.monitor.moveToThread(self.monitor_thread)
+                        self.monitor_thread.started.connect(self.monitor.run)
+                        self.monitor_thread.finished.connect(self.plot_complete)
+                        self.monitor.progress_signal.connect(self.progress_callback)
+                        logger.info("Starting monitor thread.")
+                        self.monitor_thread.start()
+
+                    post.finished.finished.connect(run_plot)
+                    pool.start(post)
+
+                    #ProjectModel.current.run_plot(self.progress_callback)
                     # self.play_button.setChecked(True)
                     return True
-                elif LayerModel.current.machine.protocol.paused:
-                    LayerModel.current.machine.protocol.paused = False
+                elif ProjectModel.current.machine.protocol.paused:
+                    logger.info("Paused?!")
+                    ProjectModel.current.machine.protocol.paused = False
                     # self.play_button.setChecked(True)
                     return True
+                else:
+                    logger.info("Not plotting. Current state: %s", ProjectModel.current.plot_worker.state)
             else:
                 logger.error("Invalid/Missing plot data.")
                 error_dialog = QMessageBox()
@@ -156,13 +270,18 @@ class QPlotRunWidget(QWidget):
                 # self.play_button.setChecked(False)
                 return False
         else:
-            LayerModel.current.machine.protocol.paused = True
+            ProjectModel.current.machine.protocol.paused = True
             self.play_button.setChecked(False)
             return True
+
+    def plot_complete(self, *args, **kw):
+        """Called when the plot monitor is done."""
+        logging.info("Plot monitor is done.")
 
     def progress_callback(self, position, size, cmd):
         logger.info("Callback at %d, %d, '%s'", position, size, cmd)
         self.plot_progress.setValue(round(100*(position/size)))
+        self.plot_msg.setText(cmd)
 
     def _fill_telnet_devices(self):
         self.device_select.clear()
@@ -173,21 +292,21 @@ class QPlotRunWidget(QWidget):
         for dev in _guess_ttys():
             logger.info("Adding device: %s", dev)
             self.device_select.addItem(dev)
-            if LayerModel.current is not None and LayerModel.current.machine.transport.portname is not None:
-                if LayerModel.current.machine.transport.portname == dev:
+            if ProjectModel.current is not None and ProjectModel.current.machine.transport.portname is not None:
+                if ProjectModel.current.machine.transport.portname == dev:
                     self.device_select.setCurrentIndex(self.device_select.count()-1)
 
     def on_transport_change(self, new_transport=None):
         logger.info("Changed to transport: %s", new_transport)
-        if LayerModel.current:
-            LayerModel.current.machine.transport = self.transport_select.currentData()(self.device_select.currentData())
-            logger.info("New transport is %s" % LayerModel.current.machine.transport)
+        if ProjectModel.current:
+            ProjectModel.current.machine.transport = self.transport_select.currentData()(self.device_select.currentData())
+            logger.info("New transport is %s" % ProjectModel.current.machine.transport)
 
     def on_device_change(self, new_device=None):
         logger.info("Selected new target device: %s" % new_device)
-        if LayerModel.current:
-            LayerModel.current.machine.transport = self.transport_select.currentData()(self.device_select.currentData())
-            logger.info("New transport is %s" % LayerModel.current.machine.transport)
+        if ProjectModel.current:
+            ProjectModel.current.machine.transport = self.transport_select.currentData()(self.device_select.currentData())
+            logger.info("New transport is %s" % ProjectModel.current.machine.transport)
 
 
     def on_machine_change(self, new_machine=None):
@@ -195,10 +314,10 @@ class QPlotRunWidget(QWidget):
         logger.info("Selected machine: %s", new_machine)
         logger.info("Selected machine: %s", self.machine_select.currentData())
 
-        if LayerModel.current:
-            LayerModel.current.machine = self.machine_select.currentData()
+        if ProjectModel.current:
+            ProjectModel.current.machine = self.machine_select.currentData()
             logger.info("Selected machine has transport: %s", self.machine_select.currentData().transport)
-            if isinstance(LayerModel.current.machine.transport, TelnetTransport):
+            if isinstance(ProjectModel.current.machine.transport, TelnetTransport):
                 self.transport_select.setCurrentIndex(1)
             else:
                 self.transport_select.setCurrentIndex(0)
