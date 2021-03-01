@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 import sys
 import os
 from PyQt5.QtCore import Qt, QVariant
-from PyQt5.QtGui import QIcon, QCloseEvent, QKeySequence, QStandardItemModel, QStandardItem
+from PyQt5.QtGui import QIcon, QCloseEvent, QKeySequence, QStandardItemModel, QStandardItem, QPixmap
 from PyQt5.QtWidgets import (QMainWindow, QAction, qApp, QWidget,
                              QFileDialog, QHBoxLayout, QDockWidget,
                              QShortcut, QListView, QApplication)
@@ -23,7 +23,8 @@ class BAPMainWindow(QMainWindow):
     def __init__(self, parent=None, flags=Qt.WindowFlags()):
         super().__init__(parent, flags)
         logger.info("Starting up, setting Icons...")
-        appicon = QIcon(resource_path("images", "aoer_logo_min.png"))
+        appicon = QIcon( resource_path("images", "aoer_logo_min.png"))
+
         qApp.setWindowIcon(appicon)
         self.setWindowIcon(appicon)
 

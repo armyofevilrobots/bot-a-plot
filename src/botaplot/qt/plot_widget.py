@@ -33,11 +33,13 @@ def _guess_ttys():
 class QPlotMonitor(QObject):
     """Just watches progress and machine state, and updates the UI."""
     progress_signal = pyqtSignal(int, int, str)
-    state_signal = pyqtSignal(object)
+    done_signal = pyqtSignal(bool)
 
-    def __init__(self, plot_worker:PlotWorker):
+    def __init__(self, event_id:str, plot_worker:PlotWorker):
         super().__init__()
         self.plot_worker = plot_worker
+        self.event_id = event_id
+        self.die = False
         # self.notifier = plot_worker.progress_notify
         # self.queue = plot_worker.progress_q
 
@@ -45,7 +47,7 @@ class QPlotMonitor(QObject):
         logger.info("Plot monitor started.")
         self.plot_worker.progress_q.put([1,1,"Ready"])
         logger.info("PROGRESS QUEUE: %s", self.plot_worker.progress_q)
-        while True:
+        while not self.die:
             while not self.plot_worker.progress_q.empty():
                 logger.info("Got an update...")
                 progress = self.plot_worker.progress_q.get()
@@ -57,10 +59,28 @@ class QPlotMonitor(QObject):
             time.sleep(0.1)  # TODO: Fix this with a better method
             if self.plot_worker.dead:
                 break
-            # logger.info("Waiting")
-            # if self.notifier.
-            # self.notifier.wait()
-            # logger.info("Done waiting. Back to top.")
+            if (not self.plot_worker.outq.empty()
+                    and self.plot_worker.state is not PlotWorkerState.PAUSED):
+                logger.info("Got a state in the result loop.")
+                result = PlotWorker.parse_result(self.plot_worker.recv(True))
+                logger.info("Got a final response of: %s", result)
+                if result['id'] == self.event_id:
+                    logger.info("That's a match for my expected id: %s", self.event_id)
+                    self.die = True
+                    if result['status'] == "ERR":
+                        self.progress_signal.emit(99, 100, "ERROR")
+                    if result['status'] == 'FATAL':
+                        self.progress_signal.emit(99, 100, "FATAL: RESTART PLOTTER")
+                    else:
+                        self.progress_signal.emit(10, 100, "DONE")
+                    self.done_signal.emit(True)
+                    return
+                else:
+                    self.done_signal.emit(True)
+                    logger.error("Mismatched IDs. Got %s expected %s", result['id'], self.event_id)
+                    return
+
+
 
 
 class QPostProcessComplete(QObject):
@@ -238,20 +258,18 @@ class QPlotRunWidget(QWidget):
                             f"START[{plot_id}]")
                         # This would block, actually, if we waited for a response.
 
-                        self.monitor = QPlotMonitor(ProjectModel.current.plot_worker)
+                        self.monitor = QPlotMonitor(plot_id, ProjectModel.current.plot_worker)
                         self.monitor_thread = QThread()
                         self.monitor.moveToThread(self.monitor_thread)
                         self.monitor_thread.started.connect(self.monitor.run)
                         self.monitor_thread.finished.connect(self.plot_complete)
                         self.monitor.progress_signal.connect(self.progress_callback)
+                        self.monitor.done_signal.connect(lambda x: self.monitor_thread.quit())
                         logger.info("Starting monitor thread.")
                         self.monitor_thread.start()
 
                     post.finished.finished.connect(run_plot)
                     pool.start(post)
-
-                    #ProjectModel.current.run_plot(self.progress_callback)
-                    # self.play_button.setChecked(True)
                     return True
                 elif ProjectModel.current.machine.protocol.paused:
                     logger.info("Paused?!")
@@ -277,6 +295,8 @@ class QPlotRunWidget(QWidget):
     def plot_complete(self, *args, **kw):
         """Called when the plot monitor is done."""
         logging.info("Plot monitor is done.")
+        self.play_button.setChecked(False)
+        # self.plot_msg.setText("Plot complete")
 
     def progress_callback(self, position, size, cmd):
         logger.info("Callback at %d, %d, '%s'", position, size, cmd)
