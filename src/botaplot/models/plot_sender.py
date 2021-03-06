@@ -59,6 +59,10 @@ class PlotWorker(object):
         Stops plotting and resets command pointer to the beginning.
         NOTE: In this case, the CMD_ID should match the job that is being
         cancelled. That command will return an ERROR[CMD_ID]
+    CMD[CMD_ID]
+        Send a set of direct commands, either gcode or hp/gl. Should be encapsulated
+        as a list of JSON array entries to escape newlines, ie:
+        LOAD[123-456-etc..]: ["G28 X Y\n", "G92\n", "M281 S5\n"]
     PAUSE[CMD_ID]
         Pause the plot and retain position
     MOVE[CMD_ID]:(!)X,(!)Y(,Z)
@@ -178,7 +182,9 @@ class PlotWorker(object):
 
     def send(self, cmd):
         """Helper function for sending a command to the worker"""
+        print("Sending: %s" % cmd)
         if not self.cmd_match.match(cmd):
+            print("Invalid command")
             raise ValueError(f"Invalid cmd '{cmd[:40]}'")
         with self.cmd_lock:
             self.inq.put(cmd)
@@ -209,6 +215,16 @@ class PlotWorker(object):
         else:
             content_out = ""
         return f"{kind}[{id}]{content_out}"
+
+    def handle_cmd(self, cmd, reentrant=False):
+        cmds = json.loads(cmd['content'])
+        for line in cmds:
+            logger.info(f"Sending single command {line}")
+            print(f"Sending single command {line}")
+            self.machine.protocol.single(line, self.machine.transport)
+            logger.info("Sent.")
+        return self._result("OK", cmd['id'],
+                            dict(count=len(cmds)))
 
     def handle_load(self, cmd, reentrant=False):
         print("Outside state wrap")
@@ -247,15 +263,17 @@ class PlotWorker(object):
         cmd = self.cmd_match.match(cmd_line).groupdict()
         method_name = "handle_%s" % cmd['cmd'].lower()
         if hasattr(self, method_name):
+            logger.info("Calling method %s with content %s",
+                        method_name, cmd['content'])
             return getattr(self, method_name)(cmd)
 
     def _progress(self, line_no, total_lines, cmd):
         # Handle a progress callback from the machine/protocol
         self._tick(True)
-        logger.info(f"Line {line_no+1}/{total_lines}: {cmd}")
+        # logger.info(f"Line {line_no+1}/{total_lines}: {cmd}")
         self.progress_q.put([line_no, total_lines, cmd])
-        logger.info("Done putting")
-        logger.info("PROGRESS QUEUE: %s", self.progress_q)
+        # logger.info("Done putting")
+        # logger.info("PROGRESS QUEUE: %s", self.progress_q)
         # with self.progress_notify:
         #     self.progress_notify.notifyAll()
 

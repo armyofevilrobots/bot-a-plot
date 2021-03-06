@@ -11,6 +11,15 @@ class SimpleAsciiProtocol(object):
         self.ready = True
         self.die = False
 
+    def single(self, cmd, transport):
+        logger.info("Send cmd:'%s'" % cmd)
+        transport.write(cmd.encode('ascii'))
+        if self.wait_for_ok:
+            response = transport.readline().decode('ascii').strip()
+            if response is None or not response or "OK" not in response.upper():
+                logger.error("Response: '%s'", response)
+                raise IOError("Invalid response from upstream plotter.")
+
     def plot(self, cmds_source, transport, callback=None):
         self.ready = False
         self.paused = False

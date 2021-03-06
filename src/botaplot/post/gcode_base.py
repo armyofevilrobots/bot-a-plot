@@ -8,6 +8,7 @@ class GCodePost(BasePost):
 
     preamble = [
         "G28 X Y",
+        "G90",
         "G92 X0 Y0",
         "M280 S5",
         "G4 P150 ; PEN IS UP",
@@ -41,6 +42,21 @@ class GCodePost(BasePost):
 
     feedrate = 20*60.0  # MM/Min
     pen_drag_mm = 0.75  # How far we'll drag then pen between lines
+
+    def util_home(self):
+        return ["%s\n" % line for line in self.preamble]
+
+    def util_move(self, x: float, y: float, relative: bool=True):
+        return ["%s\n" % line for line in
+                [relative and "G91" or "G90",
+                 "G0 X%0.3f Y%0.3f" % (x, y),
+                 ]]
+
+    def util_pen(self, up: bool=True):
+        if up:
+            return ["%s\n" % line for line in self.penup]
+        else:
+            return ["%s\n" % line for line in self.pendown]
 
     def post_lines_to_file(self, lines, filename):
         with open(filename, "w") as gc:

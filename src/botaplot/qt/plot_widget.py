@@ -13,6 +13,7 @@ from botaplot.resources import resource_path
 from botaplot.models.project_model import ProjectModel
 from botaplot.models.machine import Machine
 from botaplot.transports import TelnetTransport,SerialTransport
+import json
 import os
 import sys
 import os.path
@@ -65,14 +66,14 @@ class QPlotMonitor(QObject):
                 result = PlotWorker.parse_result(self.plot_worker.recv(True))
                 logger.info("Got a final response of: %s", result)
                 if result['id'] == self.event_id:
-                    logger.info("That's a match for my expected id: %s", self.event_id)
+                    # logger.info("That's a match for my expected id: %s", self.event_id)
                     self.die = True
                     if result['status'] == "ERR":
                         self.progress_signal.emit(99, 100, "ERROR")
                     if result['status'] == 'FATAL':
                         self.progress_signal.emit(99, 100, "FATAL: RESTART PLOTTER")
                     else:
-                        self.progress_signal.emit(10, 100, "DONE")
+                        self.progress_signal.emit(100, 100, "DONE")
                     self.done_signal.emit(True)
                     return
                 else:
@@ -192,20 +193,27 @@ class QPlotRunWidget(QWidget):
         self.move_size_box.addItem("100mm", 100)
         self.mv_home_button = QPushButton(
             QIcon(resource_path("images", "baseline_home_black_18dp.png")), "Home")
+        self.mv_home_button.clicked.connect(self._home)
         self.mv_back_button = QPushButton(
             QIcon(resource_path("images", "baseline_north_west_black_18dp.png")), "Back")
         self.mv_pen_up_button = QPushButton(
             QIcon(resource_path("images", "pen_up_black_18dp.png")), "Pen Up")
+        self.mv_pen_up_button.clicked.connect(self._penup)
         self.mv_pen_down_button = QPushButton(
             QIcon(resource_path("images", "pen_down_black_18dp.png")), "Pen Down")
+        self.mv_pen_down_button.clicked.connect(self._pendown)
         self.mv_up_button = QPushButton(
             QIcon(resource_path("images", "baseline_keyboard_arrow_up_black_18dp.png")), "Up")
+        self.mv_up_button.clicked.connect(lambda: self._move(0, 1))
         self.mv_down_button = QPushButton(
             QIcon(resource_path("images", "baseline_keyboard_arrow_down_black_18dp.png")), "Down")
+        self.mv_down_button.clicked.connect(lambda: self._move(0, -1))
         self.mv_left_button = QPushButton(
             QIcon(resource_path("images", "baseline_keyboard_arrow_left_black_18dp.png")), "Left")
+        self.mv_left_button.clicked.connect(lambda: self._move(-1, 0))
         self.mv_right_button = QPushButton(
             QIcon(resource_path("images", "baseline_keyboard_arrow_right_black_18dp.png")), "Right")
+        self.mv_right_button.clicked.connect(lambda: self._move(1, 0))
         self.mv_set_origin_button = QPushButton(
             QIcon(resource_path("images", "baseline_center_focus_strong_black_18dp.png")), "Set Origin")
         mv_but_layout.addWidget(self.move_size_box, 0, 0)
@@ -225,6 +233,71 @@ class QPlotRunWidget(QWidget):
 
         self.setLayout(v_layout)
 
+    def _send_cmd(self, cmd):
+        id = str(uuid.uuid1())
+        cmd_out = f"CMD[{id}]:{cmd}"
+        ProjectModel.current.plot_worker.send(cmd_out)
+        result = ProjectModel.current.plot_worker.parse_result(
+            ProjectModel.current.plot_worker.recv(True))
+        if result['status'].upper() != 'OK' or result['id'] != id:
+            logger.error("Got result '%s' for home command(s)", result)
+            raise RuntimeError(f"Invalid result: {str(result)} for home command.")
+
+    def _home(self):
+        cmd = json.dumps(ProjectModel.current.machine.post.util_home())
+        self._send_cmd(cmd)
+
+    def _penup(self):
+        cmd = json.dumps(ProjectModel.current.machine.post.util_pen(True))
+        self._send_cmd(cmd)
+
+    def _pendown(self):
+        cmd = json.dumps(ProjectModel.current.machine.post.util_pen(False))
+        self._send_cmd(cmd)
+
+    def _move(self, x, y):
+        distance = int(self.move_size_box.currentText()[:-2])  # remove mm suffix
+        cmd = json.dumps(ProjectModel.current.machine.post.util_move(
+            x * distance, y * distance))
+        logger.info("Move command is %s", cmd)
+        self._send_cmd(cmd)
+
+    def _plot(self):
+        logger.info("Starting plot")
+
+        self.plot_msg.setText("Post Processor dispatching.")
+        # First we slice it up/post it
+        post = QPostProcessRunnable([ProjectModel.current.plottables["all"][0], ])
+        pool = QThreadPool.globalInstance()
+
+        def run_plot(finished):
+            load_id = str(uuid.uuid1())
+            logger.info("Finished: %s", finished)
+            ProjectModel.current.plot_worker.send(
+                f"LOAD[{load_id}]:{post.gcode}")
+            result = PlotWorker.parse_result(ProjectModel.current.plot_worker.recv(True))
+            logger.info("Result is: %s", result)
+            if result['id'] != load_id:
+                raise RuntimeError("Mismatched command IDs on GCODE LOAD")
+            plot_id = str(uuid.uuid1())
+            ProjectModel.current.plot_worker.send(
+                f"START[{plot_id}]")
+            # This would block, actually, if we waited for a response.
+
+            self.monitor = QPlotMonitor(plot_id, ProjectModel.current.plot_worker)
+            self.monitor_thread = QThread()
+            self.monitor.moveToThread(self.monitor_thread)
+            self.monitor_thread.started.connect(self.monitor.run)
+            self.monitor_thread.finished.connect(self.plot_complete)
+            self.monitor.progress_signal.connect(self.progress_callback)
+            self.monitor.done_signal.connect(lambda x: self.monitor_thread.quit())
+            logger.info("Starting monitor thread.")
+            self.monitor_thread.start()
+
+        post.finished.finished.connect(run_plot)
+        pool.start(post)
+        return True
+
     def plot_clicked(self, value=None):
         logger.info("Plot clicked with value %s", value)
         if self.play_button.isChecked():  # It JUST got checked when it was clicked.
@@ -237,40 +310,7 @@ class QPlotRunWidget(QWidget):
                             ProjectModel.current.plot_worker.state)
                 # if ProjectModel.current.plot_worker.runner is None:
                 if ProjectModel.current.plot_worker.state is PlotWorkerState.READY:
-                    logger.info("Starting plot")
-
-                    self.plot_msg.setText("Post Processor dispatching.")
-                    # First we slice it up/post it
-                    post = QPostProcessRunnable([ProjectModel.current.plottables["all"][0], ])
-                    pool = QThreadPool.globalInstance()
-
-                    def run_plot(finished):
-                        load_id = str(uuid.uuid1())
-                        logger.info("Finished: %s", finished)
-                        ProjectModel.current.plot_worker.send(
-                            f"LOAD[{load_id}]:{post.gcode}")
-                        result = PlotWorker.parse_result(ProjectModel.current.plot_worker.recv(True))
-                        logger.info("Result is: %s", result)
-                        if result['id'] != load_id:
-                            raise RuntimeError("Mismatched command IDs on GCODE LOAD")
-                        plot_id = str(uuid.uuid1())
-                        ProjectModel.current.plot_worker.send(
-                            f"START[{plot_id}]")
-                        # This would block, actually, if we waited for a response.
-
-                        self.monitor = QPlotMonitor(plot_id, ProjectModel.current.plot_worker)
-                        self.monitor_thread = QThread()
-                        self.monitor.moveToThread(self.monitor_thread)
-                        self.monitor_thread.started.connect(self.monitor.run)
-                        self.monitor_thread.finished.connect(self.plot_complete)
-                        self.monitor.progress_signal.connect(self.progress_callback)
-                        self.monitor.done_signal.connect(lambda x: self.monitor_thread.quit())
-                        logger.info("Starting monitor thread.")
-                        self.monitor_thread.start()
-
-                    post.finished.finished.connect(run_plot)
-                    pool.start(post)
-                    return True
+                    return self._plot()
                 elif ProjectModel.current.machine.protocol.paused:
                     logger.info("Paused?!")
                     ProjectModel.current.machine.protocol.paused = False
@@ -294,12 +334,12 @@ class QPlotRunWidget(QWidget):
 
     def plot_complete(self, *args, **kw):
         """Called when the plot monitor is done."""
-        logging.info("Plot monitor is done.")
+        logger.info("Plot monitor is done.")
         self.play_button.setChecked(False)
         # self.plot_msg.setText("Plot complete")
 
     def progress_callback(self, position, size, cmd):
-        logger.info("Callback at %d, %d, '%s'", position, size, cmd)
+        # logger.info("Callback at %d, %d, '%s'", position, size, cmd)
         self.plot_progress.setValue(round(100*(position/size)))
         self.plot_msg.setText(cmd)
 
