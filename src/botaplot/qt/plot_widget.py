@@ -22,15 +22,25 @@ import logging
 import time
 import uuid
 from io import StringIO
+from serial.tools import list_ports
 logger = logging.getLogger(__name__)
 
 
 def _guess_ttys():
-    if sys.platform.startswith("darwin"):
-        return ["/dev/%s" % filen for filen in os.listdir('/dev')
-                if filen.startswith("tty.usb")]
-    else:
-        return list()
+    results = list()
+    for port in list_ports.comports():
+        device = port.device
+        name = port.name
+        if port.description and port.description.lower() not in ['n/a', ]:
+            name = port.description  # Better
+        results.append((device, name))
+
+    results.sort(key=lambda x: "smoothie" in x[1].lower(), reverse=True)
+    return results
+
+
+
+
 
 
 
@@ -69,11 +79,7 @@ class QPlotRunWidget(QWidget):
 
         # Now for the ports...
         self.device_select = QComboBox()
-        if ProjectModel.current is not None and ProjectModel.current.machine.transport is not None:
-            if isinstance(ProjectModel.current.machine.transport, SerialTransport):
-                self._fill_serial_devices()
-            else:
-                self._fill_telnet_devices()
+        self.transport_combo_changed()
         self.device_select.setEditable(True)
         target_box_layout.addWidget(self.device_select)
         self.device_select.currentIndexChanged.connect(self.on_device_change)
@@ -302,15 +308,23 @@ class QPlotRunWidget(QWidget):
         self.plot_progress.setValue(round(100*(position/size)))
         self.plot_msg.setText(cmd)
 
+    def transport_combo_changed(self):
+        if ProjectModel.current is not None and ProjectModel.current.machine.transport is not None:
+            if isinstance(ProjectModel.current.machine.transport, SerialTransport):
+                self._fill_serial_devices()
+            else:
+                self._fill_telnet_devices()
+
+
     def _fill_telnet_devices(self):
         self.device_select.clear()
         self.device_select.addItem("bot-a-plot")
 
     def _fill_serial_devices(self):
         self.device_select.clear()
-        for dev in _guess_ttys():
+        for dev, name in _guess_ttys():
             logger.info("Adding device: %s", dev)
-            self.device_select.addItem(dev)
+            self.device_select.addItem(name, dev)
             if ProjectModel.current is not None and ProjectModel.current.machine.transport.portname is not None:
                 if ProjectModel.current.machine.transport.portname == dev:
                     self.device_select.setCurrentIndex(self.device_select.count()-1)
@@ -320,6 +334,7 @@ class QPlotRunWidget(QWidget):
         if ProjectModel.current:
             ProjectModel.current.machine.transport = self.transport_select.currentData()(self.device_select.currentData())
             logger.info("New transport is %s" % ProjectModel.current.machine.transport)
+        self.transport_combo_changed()
 
     def on_device_change(self, new_device=None):
         logger.info("Selected new target device: %s" % new_device)

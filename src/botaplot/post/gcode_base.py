@@ -7,6 +7,7 @@ class GCodePost(BasePost):
     bounds = [(0, 0), (235, 254)]
 
     preamble = [
+        "M280 S5",
         "G28 X Y",
         "G90",
         "G92 X0 Y0",
