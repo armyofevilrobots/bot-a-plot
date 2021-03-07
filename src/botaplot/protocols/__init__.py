@@ -35,8 +35,8 @@ class SimpleAsciiProtocol(object):
                 time.sleep(1)
             if self.die:
                 break
-            print("Sending %s" % cmd)
-            print("Callback:", callback, callable(callback))
+            # print("Sending %s" % cmd)
+            # print("Callback:", callback, callable(callback))
 
             if callback is not None and callable(callback):
                 try:
@@ -48,7 +48,8 @@ class SimpleAsciiProtocol(object):
             pending_oks += 1
             transport.write(("%s\n" % cmd).encode('ascii'))
             if self.wait_for_ok:
-                while pending_oks > 16:
+                while pending_oks > transport.lookahead:
+                    print("Pending OKs:", pending_oks)
                     if self.die:
                         break
                     response = transport.readline().decode('ascii').strip()

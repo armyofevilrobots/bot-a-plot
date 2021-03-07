@@ -17,7 +17,9 @@ class Machine(object):
         self.scale = scale or Machine.scale
         self.limits = limits or Machine.limits
         self.post = post or Machine.post
-        self.transport = transport or SerialTransport("/dev/tty.usbmodem14322201")  # Brutal hack for now.
+        # Note that this will blow up with no transport, so you better pass one.
+        # ... I should probably write a dummy transport, just for testing
+        self.transport = transport  # or SerialTransport("/dev/tty.usbmodem14322201")  # Brutal hack for now.
         self.protocol = protocol or SimpleAsciiProtocol()
 
     def plot(self, commands):

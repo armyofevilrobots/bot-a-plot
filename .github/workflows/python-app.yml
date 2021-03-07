@@ -10,7 +10,7 @@ on:
     branches: [ main ]
 
 jobs:
-  build-osx:
+  build-linux-test:
 #    runs-on: macos-10.15
     runs-on: ubuntu-20.04
     steps:

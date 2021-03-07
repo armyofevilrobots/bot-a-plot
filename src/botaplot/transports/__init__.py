@@ -2,6 +2,9 @@ import socket
 import serial
 
 class BaseTransport(object):
+
+    lookahead = 8
+
     def readline(self, *args, **kw):
         return self.file.readline(*args, **kw)
 
@@ -10,6 +13,8 @@ class BaseTransport(object):
 
 class TelnetTransport(BaseTransport):
     """Simple Gcode over telnet. Mostly just for smoothie."""
+
+    lookahead = 32
 
     def __init__(self, address, port=23):
         """The port is the path to the serial port."""
@@ -26,7 +31,7 @@ class TelnetTransport(BaseTransport):
     def file(self):
         if self._file is None:
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.sock.settimeout(10.0)
+            self.sock.settimeout(30.0)  # This SHOULD be long enough to home.
             self.sock.connect((self.address, self.port))
             self._file = self.sock.makefile("rwb")
             header = self._file.readline()
@@ -60,6 +65,8 @@ class TelnetTransport(BaseTransport):
 
 class SerialTransport(BaseTransport):
     """Transport for gcode/hpgl over the serial wire"""
+
+    lookahead = 8
 
     def __init__(self, port, speed=115200):
         """The port is the path to the serial port."""

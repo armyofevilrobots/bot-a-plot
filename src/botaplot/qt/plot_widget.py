@@ -328,7 +328,9 @@ class QPlotRunWidget(QWidget):
         for dev, name in _guess_ttys():
             logger.info("Adding device: %s", dev)
             self.device_select.addItem(name, dev)
-            if ProjectModel.current is not None and ProjectModel.current.machine.transport.portname is not None:
+            if ProjectModel.current is not None \
+                    and ProjectModel.current.machine.transport is not None \
+                    and ProjectModel.current.machine.transport.portname is not None:
                 if ProjectModel.current.machine.transport.portname == dev:
                     self.device_select.setCurrentIndex(self.device_select.count()-1)
 
@@ -344,7 +346,15 @@ class QPlotRunWidget(QWidget):
     def on_device_change(self, new_device=None):
         logger.info("Selected new target device: %s" % new_device)
         if ProjectModel.current:
-            ProjectModel.current.machine.transport = self.transport_select.currentData()(self.device_select.currentData())
+            if self.device_select.currentData() is not None:
+                device = self.device_select.currentData()
+            elif self.device_select.currentText():
+                # Try to determine the device via the manually entered text.
+                device = self.device_select.currentText()
+            else:
+                device = None
+
+            ProjectModel.current.machine.transport = self.transport_select.currentData()(device)
             logger.info("New transport is %s" % ProjectModel.current.machine.transport)
 
 
