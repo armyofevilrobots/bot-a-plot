@@ -11,7 +11,6 @@ from PyQt5.QtGui import QIcon, QCloseEvent, QKeySequence, QStandardItemModel, QS
 from PyQt5.QtWidgets import (QMainWindow, QAction, qApp, QWidget,
                              QFileDialog, QHBoxLayout, QDockWidget,
                              QShortcut, QListView, QApplication)
-#from fbs_runtime.application_context.PyQt5 import ApplicationContext
 from botaplot.resources import resource_path
 from botaplot.models.project_model import ProjectModel
 from botaplot.qt.plot_widget import QPlotRunWidget
