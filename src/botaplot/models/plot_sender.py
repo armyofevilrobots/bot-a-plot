@@ -268,23 +268,23 @@ class PlotWorker(object):
     def handle_cancel(self, cmd, reentrant=False):
         # This one is weird. It _has_ to be reentrant
         logger.info("Cancelling job.")
-        print("Cancelling job")
+        # print("Cancelling job")
         with self.state_wrap():
-            print("In cancel state wrap")
+            # print("In cancel state wrap")
             logger.info("Cancelling job (IN STATE WRAP).")
             if not reentrant:
-                print("NOT REENTER ON CANCEL")
+                # print("NOT REENTER ON CANCEL")
                 return self._result(
                     "ERR",
                     cmd['id'],
                     dict(error="Not currently plotting"))
             if not self.machine.protocol.paused:
-                print("NOT PAUSED NOT CANCELLING")
+                # print("NOT PAUSED NOT CANCELLING")
                 return self._result(
                     "ERR",
                     cmd['id'],
                     dict(error="Must pause before cancelling."))
-            print("Setting to cancel!")
+            # print("Setting to cancel!")
             self.cancel_job = True
             return self._result("OK", cmd['id'])
 
@@ -305,10 +305,10 @@ class PlotWorker(object):
         self._tick(True)
 
         if self.cancel_job:
-            print("Actually cancelling")
+            # print("Actually cancelling")
             self.cancel_job = False
             self.progress_q.put([line_no, total_lines, "JOB CANCELLED"])
-            print("Raising")
+            # print("Raising")
             raise PlotJobCancelled("Cancelling plot job")
 
         # logger.info(f"Line {line_no+1}/{total_lines}: {cmd}")
