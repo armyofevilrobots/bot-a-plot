@@ -347,15 +347,24 @@ class QPlotRunWidget(QWidget):
         logger.info("Selected new target device: %s" % new_device)
         if ProjectModel.current:
             if self.device_select.currentData() is not None:
+                logger.info("CurrentData is %s of type %s",
+                            self.device_select.currentData(),
+                            type(self.device_select.currentData()))
                 device = self.device_select.currentData()
             elif self.device_select.currentText():
                 # Try to determine the device via the manually entered text.
+                logger.info("Getting device from currentText %s", self.device_select.currentText())
                 device = self.device_select.currentText()
+                logger.info("Falling back to the manually entered device: %s", device)
             else:
+                logger.error("No valid device descriptor available. Current text is: %s",
+                             self.device_select.currentText())
                 device = None
 
             ProjectModel.current.machine.transport = self.transport_select.currentData()(device)
             logger.info("New transport is %s" % ProjectModel.current.machine.transport)
+        else:
+            logger.error("No current model?! This should never happen.")
 
 
     def on_machine_change(self, new_machine=None):
