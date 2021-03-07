@@ -1,0 +1,1 @@
+recursive-include src/botaplot/resources *.png *.svg

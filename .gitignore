@@ -1,5 +1,7 @@
 # created by virtualenv automatically
+.DS_Store
 *.egg-info
+target
 man
 vendor
 bin
@@ -11,3 +13,5 @@ share
 /*.svg
 .idea
 botaplot.ini
+build
+old_src
