@@ -13,7 +13,7 @@ from botaplot.qt.plot_monitor import QPostProcessRunnable, QPlotMonitor
 from botaplot.resources import resource_path
 from botaplot.models.project_model import ProjectModel
 from botaplot.models.machine import Machine
-from botaplot.transports import TelnetTransport,SerialTransport
+from botaplot.transports import TelnetTransport, SerialTransport
 import json
 import os
 import sys
@@ -309,16 +309,19 @@ class QPlotRunWidget(QWidget):
         self.plot_msg.setText(cmd)
 
     def transport_combo_changed(self):
-        if ProjectModel.current is not None and ProjectModel.current.machine.transport is not None:
-            if isinstance(ProjectModel.current.machine.transport, SerialTransport):
-                self._fill_serial_devices()
-            else:
-                self._fill_telnet_devices()
+        # if ProjectModel.current is not None and ProjectModel.current.machine.transport is not None:
+        if self.transport_select.currentData() == SerialTransport:
+            self._fill_serial_devices()
+        elif self.transport_select.currentData() == TelnetTransport:
+            self._fill_telnet_devices()
+        else:
+            logger.error("Unexpected transport named: %s", self.transport_select.currentData())
+
 
 
     def _fill_telnet_devices(self):
         self.device_select.clear()
-        self.device_select.addItem("bot-a-plot")
+        self.device_select.addItem("bot-a-plot", "bot-a-plot")
 
     def _fill_serial_devices(self):
         self.device_select.clear()
@@ -331,10 +334,12 @@ class QPlotRunWidget(QWidget):
 
     def on_transport_change(self, new_transport=None):
         logger.info("Changed to transport: %s", new_transport)
-        if ProjectModel.current:
-            ProjectModel.current.machine.transport = self.transport_select.currentData()(self.device_select.currentData())
-            logger.info("New transport is %s" % ProjectModel.current.machine.transport)
         self.transport_combo_changed()
+        if ProjectModel.current:
+            logger.info("switching to transport type: %s", self.transport_select.currentData())
+            ProjectModel.current.machine.transport = self.transport_select.currentData()(self.device_select.currentData())
+            logger.info("Current transport now: %s" % ProjectModel.current.machine.transport)
+            logger.info("New transport is %s" % ProjectModel.current.machine.transport)
 
     def on_device_change(self, new_device=None):
         logger.info("Selected new target device: %s" % new_device)

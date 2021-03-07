@@ -19,12 +19,15 @@ class TelnetTransport(BaseTransport):
         self.sock = None
         self._file = None
 
+    def __str__(self):
+        return "<TelnetTransport to %s:%d>" % (self.address, self.port)
+
     @property
     def file(self):
         if self._file is None:
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.sock.settimeout(10.0)
-            self.sock.connect((address, port))
+            self.sock.connect((self.address, self.port))
             self._file = self.sock.makefile("rwb")
             header = self._file.readline()
             if "Smoothie command shell" not in header.decode('ascii'):

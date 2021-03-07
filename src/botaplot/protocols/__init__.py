@@ -48,7 +48,7 @@ class SimpleAsciiProtocol(object):
             pending_oks += 1
             transport.write(("%s\n" % cmd).encode('ascii'))
             if self.wait_for_ok:
-                while pending_oks > 5:
+                while pending_oks > 16:
                     if self.die:
                         break
                     response = transport.readline().decode('ascii').strip()
