@@ -9,7 +9,7 @@ pyserial==3.5
 requests==2.25.1
 scipy==1.5.4
 svgpathtools==1.4.1
-svgwrite==1.4
+svgwrite==1.4.1
 PyQt-builder==1.8.0
 PyQt5==5.15.2
 PyQt5-sip==12.8.1
