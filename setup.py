@@ -16,6 +16,7 @@ setup(
     url="https://armyofevilrobots.com",
     package_dir={'': 'src'},
     packages=find_packages(where='src'),
+    include_package_data=True,
     scripts=["scripts/botaplot", "scripts/botaplot_svg2gcode", "scripts/botaplot-print"],
     classifiers=[
         "Programming Language :: Python :: 3",

@@ -10,7 +10,7 @@ def resource_path(resource_type, filename):
         return os.path.join(
             base_path,
             f"botaplot/resources/{resource_type}/{filename}")
-    except:
+    except AttributeError:
         with importlib.resources.path(
                 "botaplot.resources.%s" % resource_type, filename) as path:
             return os.path.normpath(path)

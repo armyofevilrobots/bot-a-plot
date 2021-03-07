@@ -47,7 +47,8 @@ class TestPlottable(unittest.TestCase):
         tmp = self.plottable.pop()
         self.assertEqual(len(self.plottable), 1)
 
-    def test_optimize(self):
+    def _disabled_test_optimize(self):
+        """Optimization is currently disabled"""
         tp = Plottable(
             [
                 Plottable.Line([(20,20), (120,20), (20,30)]),

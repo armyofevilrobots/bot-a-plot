@@ -1,1 +1,1 @@
-recursive-include src/botaplot/resources *.png *.svg
+recursive-include src/botaplot/resources *.png *.svg *.icns *.gif *.jpg
