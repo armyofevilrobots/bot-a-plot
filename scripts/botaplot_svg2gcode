@@ -6,7 +6,7 @@ import os.path
 import sys
 from botaplot.models.plottable import Plottable
 from botaplot.resources import resource_path
-from botaplot.util.svg_util import subdivide_path, svg2lines, calculate_mm_per_unit
+from botaplot.util.svg_util import subdivide_path, svg2lines, calculate_mm_per_unit, read_svg_in_original_dimensions
 from botaplot.post.gcode_base import GCodePost
 from svgelements import SVG
 

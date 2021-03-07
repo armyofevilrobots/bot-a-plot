@@ -6,6 +6,7 @@ from svgelements import (CubicBezier, Arc, SimpleLine, Line, QuadraticBezier,
                          Close, Polygon, Circle, Polyline, Move, Shape, Path,
                          Rect, SVG)
 import os
+logger = logging.getLogger(__name__)
 
 def read_svg_in_original_dimensions(path):
     """Clean parse of the SVG in it's native dimensions"""
@@ -35,7 +36,6 @@ def calculate_mm_per_unit(svg):
     return 25.4/72.0
 
 def subdivide_path(path, distance=0.5):
-    logging.debug(f"Path is {path.__class__}:{path}")
     chunk_count = int(math.ceil(path.length() / distance))
     # print("Using %d chunks" % chunk_count)
     # These support Numpy acceleration
@@ -53,7 +53,10 @@ def subdivide_path(path, distance=0.5):
     elif isinstance(path, (Polygon, Circle)):
         points = [path.point(i / chunk_count) for i in range(chunk_count + 1)]
     elif isinstance(path, (Polyline, Rect)):
-        points = subdivide_path(path.segments())
+        # points = subdivide_path(path.segments())
+        # TODO: Break this down cleaner
+        points = [path.point(i / chunk_count) for i in range(chunk_count + 1)]
+
     else:
         logging.warning("Unusual component: %s" % path)
         # And this is a catch all.
@@ -86,6 +89,8 @@ def svg2lines(svg, distance=0.5):
                         sys.stderr.write("Invalid/Empty segment: %s\n" % exc)
         elif isinstance(element, Shape):
             try:
+
+                logger.info("Splitting element: %s", element)
                 tmpsub = [[x, y] for [x, y] in subdivide_path(element, distance)]
                 if tmpsub:
                     lines.append(tmpsub)
