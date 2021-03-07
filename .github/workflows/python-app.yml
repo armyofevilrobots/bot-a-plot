@@ -11,7 +11,8 @@ on:
 
 jobs:
   build-osx:
-    runs-on: macos-10.15
+#    runs-on: macos-10.15
+    runs-on: ubuntu-20.04
     steps:
     - uses: actions/checkout@v2
     - name: Set up Python 3.8
@@ -35,8 +36,8 @@ jobs:
     - name: Test with PyTest
       run: |
         pytest --junit-xml=junit.out.xml test
-#    - name: Publish Unit Test Results
-#      uses: EnricoMi/publish-unit-test-result-action@v1
-#      if: always()
-#      with:
-#        files: junit.out.xml
+    - name: Publish Unit Test Results
+      uses: EnricoMi/publish-unit-test-result-action@v1
+      if: always()
+      with:
+        files: junit.out.xml
