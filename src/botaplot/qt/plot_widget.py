@@ -115,9 +115,9 @@ class QPlotRunWidget(QWidget):
         # Set my layout...
         v_layout = QVBoxLayout()
         v_layout.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
-        target_box = QGroupBox("Target Plotter")
+        self.target_box = QGroupBox("Target Plotter")
         target_box_layout = QVBoxLayout()
-        target_box.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
+        self.target_box.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
 
         self.machine_select = QComboBox()
         for name, item in Machine.machine_catalog.items():
@@ -146,11 +146,12 @@ class QPlotRunWidget(QWidget):
                 self._fill_serial_devices()
             else:
                 self._fill_telnet_devices()
+        self.device_select.setEditable(True)
         target_box_layout.addWidget(self.device_select)
         self.device_select.currentIndexChanged.connect(self.on_device_change)
 
-        target_box.setLayout(target_box_layout)
-        v_layout.addWidget(target_box)
+        self.target_box.setLayout(target_box_layout)
+        v_layout.addWidget(self.target_box)
 
         # Now for the progress stuff:
         controls_group = QGroupBox("Controls")
@@ -173,6 +174,7 @@ class QPlotRunWidget(QWidget):
         ctl_but_group = QGroupBox()
         ctl_but_group.setAlignment(Qt.AlignHCenter)
         self.rewind_button = QPushButton(QIcon(resource_path("images", "baseline_skip_previous_black_18dp.png")),"Reset")
+        self.rewind_button.clicked.connect(self.cancel_clicked)
         self.play_button = QPushButton(QIcon(resource_path("images", "baseline_play_arrow_black_18dp.png")),"Run")
         self.play_button.setCheckable(True)
         self.play_button.clicked.connect(self.plot_clicked)
@@ -182,9 +184,9 @@ class QPlotRunWidget(QWidget):
         ctl_but_group.setLayout(ctl_but_layout)
 
         #UpUpDownDownLeftRightLeftRight_B_A_START
-        mv_but_group = QGroupBox("Manual Control")
+        self.mv_but_group = QGroupBox("Manual Control")
         mv_but_layout = QGridLayout()
-        mv_but_group.setAlignment(Qt.AlignHCenter)
+        self.mv_but_group.setAlignment(Qt.AlignHCenter)
         self.move_size_box = QComboBox()
         self.move_size_box.addItem("1mm", 1)
         self.move_size_box.addItem("5mm", 5)
@@ -225,11 +227,11 @@ class QPlotRunWidget(QWidget):
         mv_but_layout.addWidget(self.mv_right_button, 1, 2)
         mv_but_layout.addWidget(self.mv_home_button, 2, 0)
         mv_but_layout.addWidget(self.mv_set_origin_button, 1, 1)
-        mv_but_group.setLayout(mv_but_layout)
+        self.mv_but_group.setLayout(mv_but_layout)
 
         pvlayout.addWidget(ctl_but_group)
         v_layout.addWidget(controls_group)
-        v_layout.addWidget(mv_but_group)
+        v_layout.addWidget(self.mv_but_group)
 
         self.setLayout(v_layout)
 
@@ -241,7 +243,19 @@ class QPlotRunWidget(QWidget):
             ProjectModel.current.plot_worker.recv(True))
         if result['status'].upper() != 'OK' or result['id'] != id:
             logger.error("Got result '%s' for home command(s)", result)
-            raise RuntimeError(f"Invalid result: {str(result)} for home command.")
+            # raise RuntimeError(f"Invalid result: {str(result)} for home command.")
+            self.plot_msg.setText(
+                json.loads(
+                    result.get('content', {})).get('error', "Unknown error"))
+
+    def _cancel(self):
+        if not hasattr(self, 'monitor'):
+            return False
+        id = self.monitor.event_id
+        cmd_out = f"CANCEL[{id}]"
+        ProjectModel.current.plot_worker.cancel_job=True  # Tell it to die
+        ProjectModel.current.machine.protocol.paused=False  # Needs to be awake to die
+        # ProjectModel.current.plot_worker.send(cmd_out)
 
     def _home(self):
         cmd = json.dumps(ProjectModel.current.machine.post.util_home())
@@ -264,7 +278,8 @@ class QPlotRunWidget(QWidget):
 
     def _plot(self):
         logger.info("Starting plot")
-
+        self.target_box.setDisabled(True)
+        self.mv_but_group.setDisabled(True)
         self.plot_msg.setText("Post Processor dispatching.")
         # First we slice it up/post it
         post = QPostProcessRunnable([ProjectModel.current.plottables["all"][0], ])
@@ -325,16 +340,32 @@ class QPlotRunWidget(QWidget):
                 error_dialog.setText("Nothing to plot")
                 error_dialog.setInformativeText('No sender configured. Machine not set up or no source data?')
                 error_dialog.exec_()
-                # self.play_button.setChecked(False)
+                self.play_button.setChecked(False)
                 return False
         else:
             ProjectModel.current.machine.protocol.paused = True
             self.play_button.setChecked(False)
             return True
 
+    def cancel_clicked(self, *args, **kw):
+        logger.info("Cancel clicked")
+        if self.play_button.isChecked():
+            error_dialog = QMessageBox()
+            error_dialog.setIcon(QMessageBox.Critical)
+            error_dialog.setText("Cannot Cancel")
+            error_dialog.setInformativeText('Cannot cancel unless paused.')
+            error_dialog.exec_()
+            return False
+        logger.info("Checking if we can cancel.")
+        if ProjectModel.current.plot_worker is not None:
+            logger.info("Cancel sending")
+            self._cancel()
+
     def plot_complete(self, *args, **kw):
         """Called when the plot monitor is done."""
         logger.info("Plot monitor is done.")
+        self.target_box.setDisabled(False)
+        self.mv_but_group.setDisabled(False)
         self.play_button.setChecked(False)
         # self.plot_msg.setText("Plot complete")
 

@@ -2,6 +2,12 @@ import logging
 import time
 logger=logging.getLogger(__name__)
 
+
+class PlotJobCancelled(RuntimeError):
+    """Special exception for murdering a plotter job"""
+    pass
+
+
 class SimpleAsciiProtocol(object):
     """Protocol that sends pen commands with newlines between"""
 
@@ -33,7 +39,11 @@ class SimpleAsciiProtocol(object):
             print("Callback:", callback, callable(callback))
 
             if callback is not None and callable(callback):
-                callback(i, len(cmds_source), cmd)
+                try:
+                    callback(i, len(cmds_source), cmd)
+                except PlotJobCancelled:
+                    logger.error("Job cancelled via PlotJobCancelled")
+                    break
 
             pending_oks += 1
             transport.write(("%s\n" % cmd).encode('ascii'))

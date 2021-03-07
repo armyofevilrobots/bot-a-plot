@@ -8,6 +8,7 @@ import time
 import re
 from PyQt5.QtCore import QObject, QThread, pyqtSignal
 from botaplot.models.machine import Machine
+from botaplot.protocols import PlotJobCancelled
 
 logger = logging.getLogger(__name__)
 
@@ -117,6 +118,7 @@ class PlotWorker(object):
         self._state = PlotWorkerState.READY
         self.progress_notify = threading.Condition()
         self.progress_q = Queue()
+        self.cancel_job = False
 
     @classmethod
     def new(cls, machine):
@@ -147,7 +149,7 @@ class PlotWorker(object):
         parent = self
         class StateContextWrapper(object):
             def __enter__(self):
-                print("Entering context")
+                # print("Entering context")
                 # locked = parent.state_lock.acquire()
                 if parent.state != PlotWorkerState.READY:
                     raise InvalidCommandState(
@@ -159,7 +161,7 @@ class PlotWorker(object):
                 return None
 
             def __exit__(self, type, value, traceback):
-                print("Exiting context.")
+                # print("Exiting context.")
                 parent._state = self.old_state
                 #parent.state_lock.release()
 
@@ -182,9 +184,9 @@ class PlotWorker(object):
 
     def send(self, cmd):
         """Helper function for sending a command to the worker"""
-        print("Sending: %s" % cmd)
+        # print("Sending: %s" % cmd)
         if not self.cmd_match.match(cmd):
-            print("Invalid command")
+            # print("Invalid command")
             raise ValueError(f"Invalid cmd '{cmd[:40]}'")
         with self.cmd_lock:
             self.inq.put(cmd)
@@ -220,16 +222,16 @@ class PlotWorker(object):
         cmds = json.loads(cmd['content'])
         for line in cmds:
             logger.info(f"Sending single command {line}")
-            print(f"Sending single command {line}")
+            # print(f"Sending single command {line}")
             self.machine.protocol.single(line, self.machine.transport)
             logger.info("Sent.")
         return self._result("OK", cmd['id'],
                             dict(count=len(cmds)))
 
     def handle_load(self, cmd, reentrant=False):
-        print("Outside state wrap")
+        # print("Outside state wrap")
         with self.state_wrap():
-            print("Inside state wrap")
+            # print("Inside state wrap")
             if reentrant:
                 return self._result(
                     "ERR",
@@ -256,8 +258,36 @@ class PlotWorker(object):
                     "ERR",
                     cmd['id'],
                     dict(error="Existing program already running"))
-            self.machine.plot(self._program, self._progress)
+            try:
+                self.machine.plot(self._program, self._progress)
+            except PlotJobCancelled:
+                return self._result("ERR", cmd['id'],
+                                    dict(error="Job cancelled."))
             return self._result("OK", cmd['id'])
+
+    def handle_cancel(self, cmd, reentrant=False):
+        # This one is weird. It _has_ to be reentrant
+        logger.info("Cancelling job.")
+        print("Cancelling job")
+        with self.state_wrap():
+            print("In cancel state wrap")
+            logger.info("Cancelling job (IN STATE WRAP).")
+            if not reentrant:
+                print("NOT REENTER ON CANCEL")
+                return self._result(
+                    "ERR",
+                    cmd['id'],
+                    dict(error="Not currently plotting"))
+            if not self.machine.protocol.paused:
+                print("NOT PAUSED NOT CANCELLING")
+                return self._result(
+                    "ERR",
+                    cmd['id'],
+                    dict(error="Must pause before cancelling."))
+            print("Setting to cancel!")
+            self.cancel_job = True
+            return self._result("OK", cmd['id'])
+
 
     def _handle(self, cmd_line, reentrant=False):
         cmd = self.cmd_match.match(cmd_line).groupdict()
@@ -265,11 +295,22 @@ class PlotWorker(object):
         if hasattr(self, method_name):
             logger.info("Calling method %s with content %s",
                         method_name, cmd['content'])
-            return getattr(self, method_name)(cmd)
+            try:
+                return getattr(self, method_name)(cmd)
+            except Exception as exc:
+                return self._result("ERR", cmd['id'], dict(error=str(exc)))
 
     def _progress(self, line_no, total_lines, cmd):
         # Handle a progress callback from the machine/protocol
         self._tick(True)
+
+        if self.cancel_job:
+            print("Actually cancelling")
+            self.cancel_job = False
+            self.progress_q.put([line_no, total_lines, "JOB CANCELLED"])
+            print("Raising")
+            raise PlotJobCancelled("Cancelling plot job")
+
         # logger.info(f"Line {line_no+1}/{total_lines}: {cmd}")
         self.progress_q.put([line_no, total_lines, cmd])
         # logger.info("Done putting")
@@ -322,7 +363,6 @@ class PlotSender(QObject):
         self.runner = threading.Thread(target=self.plot_monitor, args=[callback, self.kill_plot], daemon=True)
         self.runner.start()
         return True
-
 
     def pause(self, paused=True):
         from .project_model import ProjectModel  # Runtime import because of circular dependency.
