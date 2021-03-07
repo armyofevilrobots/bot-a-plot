@@ -1,3 +1,4 @@
 import coloredlogs
+import logging
 
-coloredlogs.install(level=DEBUG)
+coloredlogs.install(level=logging.DEBUG)

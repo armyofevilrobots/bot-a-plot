@@ -20,6 +20,7 @@ def subdivide_path_fancy(path, aspect=0.99):
     of the lines. We do a binary search through
     the segment length space until we get a good result.
     """
+    max_length = 1.0
     chunk_count = int(math.ceil(path.length()/max_length))
     points = [path.point((i+1.0)/chunk_count) for i in range(chunk_count)]
     return [(p.real, p.imag) for p in points]

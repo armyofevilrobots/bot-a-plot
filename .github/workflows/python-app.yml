@@ -10,10 +10,8 @@ on:
     branches: [ main ]
 
 jobs:
-  build:
-
+  build-osx:
     runs-on: macos-10.15
-
     steps:
     - uses: actions/checkout@v2
     - name: Set up Python 3.8
@@ -25,6 +23,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install flake8 pytest
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        python setup.py install
     - name: Lint with flake8
       run: |
         # stop the build if there are Python syntax errors or undefined names
@@ -34,8 +33,8 @@ jobs:
     - name: Test with PyTest
       run: |
         pytest --junit-xml=junit.out.xml test
-    - name: Publish Unit Test Results
-      uses: EnricoMi/publish-unit-test-result-action@v1
-      if: always()
-      with:
-        files: junit.out.xml
+#    - name: Publish Unit Test Results
+#      uses: EnricoMi/publish-unit-test-result-action@v1
+#      if: always()
+#      with:
+#        files: junit.out.xml

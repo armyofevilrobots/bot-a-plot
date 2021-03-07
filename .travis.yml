@@ -22,3 +22,4 @@ script:
     --windowed
     --hidden-import=botaplot.resources.images
     src/main/python/main.py
+
