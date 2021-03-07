@@ -1,4 +1,5 @@
 # created by virtualenv automatically
+dist
 .DS_Store
 *.egg-info
 target
