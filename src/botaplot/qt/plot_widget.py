@@ -362,7 +362,7 @@ class QPlotRunWidget(QWidget):
                 device = None
 
             ProjectModel.current.machine.transport = self.transport_select.currentData()(device)
-            logger.info("New transport is %s" % ProjectModel.current.machine.transport)
+            logger.info("New device transport is %s" % ProjectModel.current.machine.transport)
         else:
             logger.error("No current model?! This should never happen.")
 

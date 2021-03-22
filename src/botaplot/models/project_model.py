@@ -2,6 +2,7 @@ import logging
 import os
 from collections import deque, OrderedDict
 
+from rdp import rdp
 from PyQt5.QtCore import pyqtSignal, QThread
 
 from botaplot.util.svg_util import svg2lines, calculate_mm_per_unit, read_svg_in_original_dimensions
@@ -60,8 +61,11 @@ class ProjectModel(object):
             callback = lambda x: x
         svg = read_svg_in_original_dimensions(os.path.normpath(path))
         cls.current = cls(svg, path, None, None, None)
-        lines = svg2lines(svg, 0.5)
-        plottable = Plottable([Plottable.Line(line) for line in lines], callback=callback)
+        lines = svg2lines(svg, 0.3)
+        logger.info("We have %d line points before optimization" % sum([len(line) for line in lines]))
+        # plottable = Plottable([Plottable.Line(line) for line in lines], callback=callback)
+        plottable = Plottable([Plottable.Line(rdp(line, epsilon=0.2)) for line in lines], callback=callback)
+        logger.info("We have %d line points before optimization" % sum([len(line) for line in plottable]))
         cls.current.plottables = OrderedDict(all=(plottable, len(plottable)))
         scale = calculate_mm_per_unit(svg)  # 25.4/72.0 #plottable.calculate_dpi_via_svg(svg)
         cls.current.scale = scale
