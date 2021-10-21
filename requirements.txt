@@ -1,7 +1,7 @@
 CairoSVG==2.5.1
 hjson==3.0.2
 matplotlib==3.2.2
-numpy==1.19.4
+numpy==1.21.3
 penkit==0.0.6
 pyinstaller==4.2
 pyinstaller-hooks-contrib==2020.11
